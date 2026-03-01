@@ -1,5 +1,5 @@
 # ============================================
-# AGUWEYBOT PRO - RAG + VISUAL + STREAMING (SIN PARPADEO)
+# AGUWEYBOT PRO - RAG + VISUAL + STREAMING (CONTROLES VISIBLES)
 # ============================================
 
 import os
@@ -46,31 +46,25 @@ Tu objetivo es asistir a profesionales de la ingeniería al nivel de un experto 
 """
 
 # ==========================
-# CALLBACK PARA STREAMING EN STREAMLIT (SIN PARPADEO)
+# CALLBACK PARA STREAMING EN STREAMLIT
 # ==========================
 
 class StreamlitCallbackHandler(BaseCallbackHandler):
-    """Callback handler para streaming de tokens en Streamlit - Sin parpadeo molesto"""
+    """Callback handler para streaming de tokens en Streamlit"""
     
     def __init__(self, container):
         super().__init__()
         self.container = container
         self.text = ""
-        self.first_token = True
         
     def on_llm_new_token(self, token: str, **kwargs) -> None:
         """Procesa cada nuevo token"""
         self.text += token
-        
-        # Usar un cursor estático (▌) sin animación de parpadeo
-        # Esto indica que está escribiendo pero no distrae
         self.container.markdown(f'<div class="respuesta-aguwey streaming">{self.text}<span class="cursor">▌</span></div>', unsafe_allow_html=True)
-        
-        # Pequeña pausa para efecto visual
-        time.sleep(0.005)  # Reducido para que sea más rápido y fluido
+        time.sleep(0.005)
 
 # ==========================
-# FONDO PERSONALIZADO - CONTRASTE MÁXIMO (SIN PARPADEO)
+# FONDO PERSONALIZADO - CONTRASTE MÁXIMO (CON CONTROLES VISIBLES)
 # ==========================
 
 def set_background(image_path):
@@ -80,18 +74,102 @@ def set_background(image_path):
 
         st.markdown(f"""
         <style>
-        /* ===== ESTILOS PARA STREAMING - SIN PARPADEO ===== */
-        .respuesta-aguwey.streaming {{
-            border-right: none;  /* Sin borde derecho que parpadea */
+        /* ===== CONTROLES RERUN Y STOP - AHORA VISIBLES ===== */
+        /* Botón Rerun (ejecutar nuevamente) */
+        button[title="Rerun"],
+        .stApp header button[kind="secondary"],
+        .stButton button[kind="secondary"],
+        div[data-testid="stStatusWidget"] button,
+        .stApp [data-testid="baseButton-secondary"] {{
+            background-color: #00a8a0 !important;
+            color: white !important;
+            font-weight: bold !important;
+            border: 2px solid #00ffe0 !important;
+            border-radius: 20px !important;
+            box-shadow: 0 0 15px rgba(0, 255, 224, 0.7) !important;
+            margin: 5px !important;
         }}
         
+        /* Botón Stop (detener ejecución) */
+        button[title="Stop"],
+        .stApp header button[kind="primary"],
+        .stButton button[kind="primary"],
+        div[data-testid="stStatusWidget"] button:last-child,
+        .stApp [data-testid="baseButton-primary"] {{
+            background-color: #ff4444 !important;
+            color: white !important;
+            font-weight: bold !important;
+            border: 2px solid #ff8888 !important;
+            border-radius: 20px !important;
+            box-shadow: 0 0 15px rgba(255, 68, 68, 0.7) !important;
+            margin: 5px !important;
+        }}
+        
+        /* Hover effects */
+        button[title="Rerun"]:hover,
+        .stApp header button[kind="secondary"]:hover {{
+            background-color: #00ffe0 !important;
+            color: black !important;
+            transform: scale(1.05) !important;
+            box-shadow: 0 0 20px rgba(0, 255, 224, 0.9) !important;
+        }}
+        
+        button[title="Stop"]:hover,
+        .stApp header button[kind="primary"]:hover {{
+            background-color: #ff6666 !important;
+            color: black !important;
+            transform: scale(1.05) !important;
+            box-shadow: 0 0 20px rgba(255, 68, 68, 0.9) !important;
+        }}
+        
+        /* Widget de estado (Running/Complete) */
+        .stStatusWidget,
+        div[data-testid="stStatusWidget"] {{
+            color: #00ffe0 !important;
+            font-weight: bold !important;
+            background-color: rgba(0, 0, 0, 0.7) !important;
+            padding: 5px 10px !important;
+            border-radius: 20px !important;
+            border: 1px solid #00ffe0 !important;
+        }}
+        
+        /* ===== ESTILOS PARA STREAMING ===== */
         .cursor {{
-            color: #00ffe0;  /* Color turquesa para el cursor */
+            color: #00ffe0;
             font-weight: bold;
             display: inline-block;
-            opacity: 1;  /* Sin parpadeo, siempre visible */
+            opacity: 1;
             margin-left: 2px;
             font-size: 1.2em;
+        }}
+        
+        /* ===== HEADING SUPERIOR DEL MENÚ ===== */
+        [data-testid="stSidebar"] h1 {{
+            font-size: 2.2rem !important;
+            font-weight: 800 !important;
+            background: linear-gradient(45deg, #00ffe0, #ffd966);
+            -webkit-background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+            background-clip: text !important;
+            text-shadow: 0 0 20px rgba(0, 255, 224, 0.7) !important;
+            margin-bottom: 0px !important;
+            padding-bottom: 0px !important;
+            letter-spacing: 2px !important;
+            border-bottom: 3px solid #00ffe0;
+            display: inline-block;
+            width: 100%;
+        }}
+        
+        [data-testid="stSidebar"] h3 {{
+            color: #ffffff !important;
+            font-size: 1.1rem !important;
+            font-weight: 400 !important;
+            font-style: italic !important;
+            margin-top: 5px !important;
+            margin-bottom: 20px !important;
+            opacity: 0.9;
+            border-left: 3px solid #00ffe0;
+            padding-left: 10px;
         }}
         
         /* ===== RESET COMPLETO ===== */
@@ -221,25 +299,21 @@ def set_background(image_path):
             font-style: italic !important;
         }}
 
-        .css-1d391kg, .sidebar, [data-testid="stSidebar"] {{
+        [data-testid="stSidebar"] {{
             background-color: #0a0a0f !important;
-            border-right: 2px solid #00ffe0 !important;
+            border-right: 3px solid #00ffe0 !important;
+            box-shadow: 5px 0 15px rgba(0, 255, 224, 0.2) !important;
         }}
 
         [data-testid="stSidebar"] * {{
             color: #ffffff !important;
         }}
 
-        [data-testid="stSidebar"] h1, 
-        [data-testid="stSidebar"] h2, 
-        [data-testid="stSidebar"] h3 {{
-            color: #00ffe0 !important;
-        }}
-
         [data-testid="stSidebar"] .stAlert {{
             background-color: #1a1a2a !important;
             color: #ffffff !important;
             border: 1px solid #00ffe0 !important;
+            border-radius: 10px !important;
         }}
 
         .streamlit-expanderHeader {{
@@ -247,10 +321,12 @@ def set_background(image_path):
             background-color: #1a1a2a !important;
             border-radius: 5px !important;
             font-weight: 600 !important;
+            border: 1px solid #00ffe0 !important;
         }}
 
         .streamlit-expanderHeader:hover {{
             color: #00ffe0 !important;
+            background-color: #2a2a3a !important;
         }}
 
         .streamlit-expanderContent {{
@@ -413,21 +489,18 @@ def cargar_retriever():
 
 
 # ==========================
-# FUNCIÓN PARA MOSTRAR RESPUESTA CON STREAMING (SIN PARPADEO)
+# FUNCIÓN PARA MOSTRAR RESPUESTA CON STREAMING
 # ==========================
 
 def mostrar_respuesta_streaming(mensajes):
-    """Muestra la respuesta en tiempo real con efecto de escritura - Sin parpadeo"""
+    """Muestra la respuesta en tiempo real con efecto de escritura"""
     
-    # Crear contenedor para la respuesta
     st.markdown("### 🤖 Respuesta de AguweyBot PRO")
     st.markdown("---")
     response_container = st.empty()
     
-    # Crear el callback handler
     callback = StreamlitCallbackHandler(response_container)
     
-    # Crear un nuevo LLM específicamente para streaming
     llm_stream = ChatOllama(
         model=MODEL_NAME,
         temperature=0.0,
@@ -438,10 +511,7 @@ def mostrar_respuesta_streaming(mensajes):
         callbacks=[callback]
     )
     
-    # Generar respuesta con streaming
     response = llm_stream.invoke(mensajes)
-    
-    # Mostrar versión final sin cursor
     response_container.markdown(f'<div class="respuesta-aguwey">{response.content}</div>', unsafe_allow_html=True)
     
     return response
@@ -497,7 +567,6 @@ st.markdown("""
     50% { text-shadow: 0 0 20px #00ffe0, 0 0 30px #ffd966; }
     100% { text-shadow: 0 0 10px #00ffe0; }
 }
-
 .titulo-principal {
     animation: glow 3s infinite;
 }
@@ -521,28 +590,21 @@ pregunta = st.text_input(
 
 # Procesar pregunta
 if pregunta:
-    # Mostrar spinner solo durante la recuperación de documentos
     with st.spinner("🧠 Buscando en la base de conocimiento..."):
         docs = retriever.invoke(pregunta)
 
     if not docs:
-        # Sin contexto RAG
         mensajes = [
             SystemMessage(content=SYSTEM_PROMPT),
             HumanMessage(content=pregunta)
         ]
         
-        # Usar streaming para la respuesta
         respuesta = mostrar_respuesta_streaming(mensajes)
-        
-        # Mostrar advertencia después de la respuesta
         st.info("ℹ️ No se encontraron documentos relevantes en la base de conocimiento. Respuesta basada en conocimiento general.")
         
     else:
-        # Con contexto RAG
         contexto_rag = "\n\n".join([doc.page_content for doc in docs])
         
-        # Mostrar documentos recuperados en el sidebar
         with st.sidebar:
             st.markdown("### 📚 Documentos Recuperados")
             st.markdown(f"*Fuentes encontradas: {len(docs)}*")
@@ -569,10 +631,8 @@ Pregunta del usuario:
             HumanMessage(content=prompt_final)
         ]
         
-        # Usar streaming para la respuesta
         respuesta = mostrar_respuesta_streaming(mensajes)
         
-        # Mostrar fuentes en la respuesta principal también
         with st.expander("📑 Ver fuentes completas"):
             for i, doc in enumerate(docs, 1):
                 st.markdown(f"**Fuente {i}:**")
@@ -580,10 +640,8 @@ Pregunta del usuario:
                 st.markdown("---")
 
 else:
-    # Mensaje de bienvenida
     st.info("👆 **¡Bienvenido!** Escribe tu pregunta técnica en el campo superior para comenzar.")
     
-    # Ejemplos de preguntas
     with st.expander("💡 Ejemplos de preguntas que puedes hacer:"):
         st.markdown("""
         - "¿Cómo funciona un amplificador operacional en configuración no inversora?"
