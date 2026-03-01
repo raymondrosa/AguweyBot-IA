@@ -264,10 +264,7 @@ def cargar_retriever():
 # ────────────────────────────────────────────
 
 def mostrar_respuesta_streaming(mensajes):
-    st.markdown("### 🤖 Respuesta de AguweyBot PRO")
-    st.markdown("---")
     response_container = st.empty()
-    
     callback = StreamlitCallbackHandler(response_container)
     
     llm_stream = ChatOllama(
