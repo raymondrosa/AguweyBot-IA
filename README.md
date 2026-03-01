@@ -3,9 +3,6 @@
 **Asistente técnico inteligente con RAG + streaming + interfaz profesional**  
 Especializado en ingeniería, ciencias aplicadas y problemas técnicos reales.
 
-![AguweyBot PRO](https://via.placeholder.com/1200x400/0d1117/00d4ff?text=AguweyBot+PRO+2026)  
-*(reemplaza esta imagen por una captura real de tu interfaz)*
-
 ## ✨ Características principales
 
 - **RAG semántico** con base de conocimiento técnica (Chroma + Ollama embeddings)
@@ -17,14 +14,6 @@ Especializado en ingeniería, ciencias aplicadas y problemas técnicos reales.
 - Diseño responsivo + tema técnico inspirado en GitHub Dark / VS Code
 - Sidebar con estado del sistema y visualización de documentos recuperados
 - Respuestas estructuradas, rigurosas y fundamentadas en contexto recuperado
-
-## 📸 Capturas
-
-<!-- Agrega aquí 2–4 capturas reales cuando las tengas -->
-
-| Interfaz principal                          | Documentos recuperados (sidebar)           | Streaming en acción                       |
-|---------------------------------------------|--------------------------------------------|--------------------------------------------|
-| ![main](docs/screenshots/main.png)         | ![sidebar](docs/screenshots/sidebar.png)  | ![streaming](docs/screenshots/streaming.gif) |
 
 ## 🛠️ Requisitos
 
