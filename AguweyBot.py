@@ -1,5 +1,5 @@
 # ============================================
-# AGUWEYBOT PRO - RAG + VISUAL
+# AGUWEYBOT PRO - RAG + VISUAL (CONTRASTE MÁXIMO - CORREGIDO)
 # ============================================
 
 import os
@@ -42,8 +42,9 @@ Reglas críticas:
 
 Tu objetivo es asistir a profesionales de la ingeniería al nivel de un experto técnico.
 """
+
 # ==========================
-# FONDO PERSONALIZADO
+# FONDO PERSONALIZADO - CONTRASTE MÁXIMO (CORREGIDO)
 # ==========================
 
 def set_background(image_path):
@@ -53,26 +54,306 @@ def set_background(image_path):
 
         st.markdown(f"""
         <style>
+        /* ===== RESET COMPLETO ===== */
+        /* Forzar que TODO el texto sea blanco por defecto */
+        html, body, .stApp, .main, .block-container, div, span, p, h1, h2, h3, h4, h5, h6, 
+        label, .stTextInput label, .stMarkdown, .st-cx, .st-bx, .st-ci, .st-ck, .st-cw,
+        .element-container, .row-widget, .stAlert, .stInfo, .stSuccess, .stWarning, .stError,
+        .st-bb, .st-at, .st-ae, .st-af, .st-ag, .st-ah, .st-ai, .st-aj, .st-ak,
+        .stButton p, .stSelectbox label, .stSlider label, .stDateInput label {{
+            color: #ffffff !important;
+        }}
+
+        /* Fondo de la app */
         .stApp {{
             background-image: url("data:image/png;base64,{encoded}");
             background-size: cover;
             background-attachment: fixed;
+            background-position: center;
         }}
 
+        /* Contenedor principal con fondo semitransparente */
         .main .block-container {{
-            background-color: rgba(0,0,0,0.85);
+            background-color: rgba(0, 0, 0, 0.9) !important;
             padding: 2rem;
             border-radius: 20px;
+            box-shadow: 0 4px 15px rgba(0, 255, 224, 0.2);
+            border: 1px solid rgba(0, 255, 224, 0.3);
         }}
 
+        /* ===== TÍTULOS ===== */
         h1, h2, h3 {{
             color: #00ffe0 !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.5px;
+            text-shadow: 0 0 10px rgba(0, 255, 224, 0.5);
         }}
 
-        p, label {{
+        h4, h5, h6 {{
+            color: #ffd966 !important;
+            font-weight: 600 !important;
+        }}
+
+        /* ===== RESPUESTAS ===== */
+        .respuesta-aguwey {{
+            background-color: #1a1a2a !important;
+            border-left: 5px solid #00ffe0 !important;
+            border-radius: 10px !important;
+            padding: 20px !important;
+            margin: 15px 0 !important;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.7) !important;
+        }}
+
+        .respuesta-aguwey p {{
+            color: #ffffff !important;
+            line-height: 1.7 !important;
+            font-size: 1.05rem !important;
+            margin-bottom: 15px !important;
+        }}
+
+        .respuesta-aguwey strong {{
+            color: #00ffe0 !important;
+            font-weight: 700 !important;
+        }}
+
+        .respuesta-aguwey em {{
+            color: #ffd966 !important;
+            font-style: italic !important;
+        }}
+
+        .respuesta-aguwey code {{
+            background-color: #2d2d3a !important;
+            color: #ffb86b !important;
+            padding: 2px 6px !important;
+            border-radius: 4px !important;
+            font-family: 'Courier New', monospace !important;
+            font-size: 0.95rem !important;
+        }}
+
+        .respuesta-aguwey pre {{
+            background-color: #0a0a0f !important;
+            border: 1px solid #00ffe0 !important;
+            border-radius: 8px !important;
+            padding: 15px !important;
+            overflow-x: auto !important;
+        }}
+
+        .respuesta-aguwey pre code {{
+            background-color: transparent !important;
+            color: #f8f8f2 !important;
+            padding: 0 !important;
+        }}
+
+        .respuesta-aguwey ul, .respuesta-aguwey ol {{
+            color: #ffffff !important;
+            margin: 10px 0 !important;
+            padding-left: 25px !important;
+        }}
+
+        .respuesta-aguwey li {{
+            color: #ffffff !important;
+            margin: 5px 0 !important;
+        }}
+
+        /* ===== CAJA DE PREGUNTA ===== */
+        .stTextInput label {{
+            color: #ffffff !important;
+            font-size: 1.1rem !important;
+            font-weight: 600 !important;
+            margin-bottom: 5px !important;
+        }}
+
+        .stTextInput input {{
+            background-color: #2a2a3a !important;
+            color: #ffffff !important;
+            border: 2px solid #00ffe0 !important;
+            border-radius: 10px !important;
+            padding: 12px 15px !important;
+            font-size: 1rem !important;
+            font-weight: 400 !important;
+        }}
+
+        .stTextInput input:focus {{
+            border-color: #ffd966 !important;
+            box-shadow: 0 0 15px rgba(0, 255, 224, 0.7) !important;
+            background-color: #3a3a4a !important;
+        }}
+
+        .stTextInput input::placeholder {{
+            color: #aaaaaa !important;
+            font-style: italic !important;
+        }}
+
+        /* ===== BARRA LATERAL ===== */
+        .css-1d391kg, .sidebar, [data-testid="stSidebar"] {{
+            background-color: #0a0a0f !important;
+            border-right: 2px solid #00ffe0 !important;
+        }}
+
+        [data-testid="stSidebar"] * {{
             color: #ffffff !important;
         }}
 
+        [data-testid="stSidebar"] h1, 
+        [data-testid="stSidebar"] h2, 
+        [data-testid="stSidebar"] h3 {{
+            color: #00ffe0 !important;
+        }}
+
+        [data-testid="stSidebar"] .stAlert {{
+            background-color: #1a1a2a !important;
+            color: #ffffff !important;
+            border: 1px solid #00ffe0 !important;
+        }}
+
+        /* ===== EXPANDERS ===== */
+        .streamlit-expanderHeader {{
+            color: #ffffff !important;
+            background-color: #1a1a2a !important;
+            border-radius: 5px !important;
+            font-weight: 600 !important;
+        }}
+
+        .streamlit-expanderHeader:hover {{
+            color: #00ffe0 !important;
+        }}
+
+        .streamlit-expanderContent {{
+            background-color: #0f0f1a !important;
+            border: 1px solid #00ffe0 !important;
+            border-radius: 0 0 5px 5px !important;
+        }}
+
+        .streamlit-expanderContent * {{
+            color: #ffffff !important;
+        }}
+
+        /* ===== ALERTS ===== */
+        .stAlert {{
+            background-color: #1a1a2a !important;
+            border: 1px solid #00ffe0 !important;
+            border-radius: 8px !important;
+        }}
+
+        .stAlert * {{
+            color: #ffffff !important;
+        }}
+
+        .stInfo {{
+            background-color: #1a3a4a !important;
+            border-left-color: #00ffe0 !important;
+        }}
+
+        .stSuccess {{
+            background-color: #1a3a2a !important;
+            border-left-color: #00ff80 !important;
+        }}
+
+        .stWarning {{
+            background-color: #4a3a1a !important;
+            border-left-color: #ffaa00 !important;
+        }}
+
+        .stError {{
+            background-color: #4a1a1a !important;
+            border-left-color: #ff4444 !important;
+        }}
+
+        /* ===== SPINNER ===== */
+        .stSpinner {{
+            color: #00ffe0 !important;
+        }}
+
+        .stSpinner > div {{
+            border-color: #00ffe0 transparent transparent transparent !important;
+        }}
+
+        /* ===== BOTONES ===== */
+        .stButton button {{
+            background: linear-gradient(45deg, #00a8a0, #00ffe0) !important;
+            color: #000000 !important;
+            font-weight: 700 !important;
+            border: none !important;
+            border-radius: 25px !important;
+            padding: 10px 25px !important;
+            transition: all 0.3s ease !important;
+            text-transform: uppercase !important;
+            letter-spacing: 1px !important;
+        }}
+
+        .stButton button:hover {{
+            background: linear-gradient(45deg, #00ffe0, #ffd966) !important;
+            transform: scale(1.05) !important;
+            box-shadow: 0 0 20px rgba(0, 255, 224, 0.7) !important;
+        }}
+
+        /* ===== SCROLLBAR ===== */
+        ::-webkit-scrollbar {{
+            width: 10px;
+            height: 10px;
+        }}
+
+        ::-webkit-scrollbar-track {{
+            background: #1a1a2a;
+        }}
+
+        ::-webkit-scrollbar-thumb {{
+            background: #00ffe0;
+            border-radius: 5px;
+        }}
+
+        ::-webkit-scrollbar-thumb:hover {{
+            background: #ffd966;
+        }}
+
+        /* ===== TABLAS ===== */
+        table {{
+            color: #ffffff !important;
+            background-color: #1a1a2a !important;
+            border: 1px solid #00ffe0 !important;
+        }}
+
+        th {{
+            background-color: #2a2a3a !important;
+            color: #00ffe0 !important;
+            font-weight: 700 !important;
+            border-bottom: 2px solid #00ffe0 !important;
+        }}
+
+        td {{
+            color: #ffffff !important;
+            border-bottom: 1px solid #3a3a4a !important;
+        }}
+
+        tr:hover {{
+            background-color: #2a2a3a !important;
+        }}
+
+        /* ===== CAPTIONS Y TEXTOS PEQUEÑOS ===== */
+        .stCaption, caption, .small, .st-caption {{
+            color: #cccccc !important;
+            font-style: italic !important;
+        }}
+
+        /* ===== ENLACES ===== */
+        a {{
+            color: #00ffe0 !important;
+            text-decoration: none !important;
+            font-weight: 600 !important;
+        }}
+
+        a:hover {{
+            color: #ffd966 !important;
+            text-decoration: underline !important;
+        }}
+
+        /* ===== CÓDIGO EN GENERAL ===== */
+        code {{
+            background-color: #2a2a3a !important;
+            color: #ffb86b !important;
+            padding: 2px 5px !important;
+            border-radius: 4px !important;
+        }}
         </style>
         """, unsafe_allow_html=True)
 
@@ -105,93 +386,160 @@ def cargar_retriever():
 
 
 # ==========================
-# INTERFAZ
+# FUNCIÓN PARA MOSTRAR RESPUESTA
 # ==========================
 
-st.set_page_config(page_title="AguweyBot PRO", page_icon="⚡")
+def mostrar_respuesta(respuesta_texto):
+    """Muestra la respuesta en un contenedor con estilo mejorado"""
+    st.markdown("### 🤖 Respuesta de AguweyBot PRO")
+    st.markdown("---")
+    st.markdown(f'<div class="respuesta-aguwey">{respuesta_texto}</div>', unsafe_allow_html=True)
+
+
+# ==========================
+# INTERFAZ PRINCIPAL
+# ==========================
+
+st.set_page_config(
+    page_title="AguweyBot PRO", 
+    page_icon="⚡",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 set_background("fondo.png")
 
 with st.sidebar:
-    st.markdown("## 🤖 AGUWEYBOT PRO")
+    st.markdown("# ⚡ AGUWEYBOT PRO")
+    st.markdown("### *Asistente Técnico Inteligente*")
 
     if os.path.exists("logo.png"):
         st.image("logo.png", width=220)
     else:
-        st.info("Coloca logo.png en la carpeta")
+        st.info("📌 Coloca tu logo en `logo.png` para personalizar")
 
     st.markdown("---")
+    st.markdown("### 🎯 Capacidades")
+    st.markdown("""
+    - 📚 RAG Semántico
+    - 🔬 Análisis Técnico
+    - 💡 Respuestas Precisas
+    - 🎨 Visual Mejorado
+    """)
+    
+    st.markdown("---")
+    st.markdown("### 📊 Estado del Sistema")
+    st.success("✅ Modelo: phi3:mini")
+    st.info(f"📁 Vector DB: {PERSIST_DIRECTORY}")
+    
+    st.markdown("---")
+    st.caption("© 2024 AguweyBot PRO v2.0")
     st.caption("Arquitectura RAG Profesional")
 
-st.title("⚡ AguweyBot PRO")
-st.caption("Sistema cognitivo con recuperación semántica")
+# Título principal
+st.markdown("""
+<style>
+@keyframes glow {
+    0% { text-shadow: 0 0 10px #00ffe0; }
+    50% { text-shadow: 0 0 20px #00ffe0, 0 0 30px #ffd966; }
+    100% { text-shadow: 0 0 10px #00ffe0; }
+}
 
-llm = cargar_llm()
-retriever = cargar_retriever()
+.titulo-principal {
+    animation: glow 3s infinite;
+}
+</style>
+""", unsafe_allow_html=True)
 
-pregunta = st.text_input("Escribe tu pregunta:")
+st.markdown('<h1 class="titulo-principal">⚡ AguweyBot PRO</h1>', unsafe_allow_html=True)
+st.caption("Sistema cognitivo con recuperación semántica y visual mejorado")
 
+# Cargar modelos
+with st.spinner("🚀 Inicializando sistemas cognitivos..."):
+    llm = cargar_llm()
+    retriever = cargar_retriever()
+
+# Input de pregunta
+pregunta = st.text_input(
+    "🔍 **Escribe tu consulta técnica:**",
+    placeholder="Ej: ¿Cómo calcular la resistencia equivalente en un circuito paralelo?",
+    key="pregunta_input"
+)
+
+# Procesar pregunta
 if pregunta:
-
-    with st.spinner("Analizando..."):
-
+    with st.spinner("🧠 Analizando documentación y generando respuesta..."):
         docs = retriever.invoke(pregunta)
 
         if not docs:
-
+            # Sin contexto RAG
             mensajes = [
                 SystemMessage(content=SYSTEM_PROMPT),
                 HumanMessage(content=pregunta)
             ]
-
             respuesta = llm.invoke(mensajes)
-
-            st.markdown("### Respuesta")
-            st.write(respuesta.content)
-
+            mostrar_respuesta(respuesta.content)
+            
+            # Mostrar advertencia
+            st.info("ℹ️ No se encontraron documentos relevantes en la base de conocimiento. Respuesta basada en conocimiento general.")
+            
         else:
-
-            contexto_rag = "\n\n".join(
-                [doc.page_content for doc in docs]
-            )
-
-            prompt_final = f"""
-Contexto técnico relevante:
-{contexto_rag}
-
-Pregunta del usuario:
-{pregunta}
-"""
-
-            mensajes = [
-                SystemMessage(content=SYSTEM_PROMPT),
-                HumanMessage(content=prompt_final)
-            ]
-
-            respuesta = llm.invoke(mensajes)
-
-            st.markdown("### Respuesta")
-            st.write(respuesta.content)
+            # Con contexto RAG
+            contexto_rag = "\n\n".join([doc.page_content for doc in docs])
+            
+            # Mostrar documentos recuperados en el sidebar
+            with st.sidebar:
+                st.markdown("### 📚 Documentos Recuperados")
+                st.markdown(f"*Fuentes encontradas: {len(docs)}*")
+                for i, doc in enumerate(docs, 1):
+                    with st.expander(f"📄 Fuente {i}"):
+                        st.markdown(f"**Contenido:**\n{doc.page_content[:200]}...")
+            
             prompt_final = f"""
 Contexto técnico relevante:
 {contexto_rag}
 
 Instrucciones:
-- Analiza cuidadosamente el contexto.
-- Extrae únicamente la información pertinente.
-- Responde con rigor técnico.
-- Si el contexto no contiene la respuesta, indícalo.
+- Analiza cuidadosamente el contexto proporcionado.
+- Extrae únicamente la información pertinente a la pregunta.
+- Responde con rigor técnico y estructura profesional.
+- Si el contexto no contiene la respuesta completa, indícalo claramente.
+- Fundamenta tu respuesta en los datos del contexto.
 
 Pregunta del usuario:
 {pregunta}
 """
-
             mensajes = [
                 SystemMessage(content=SYSTEM_PROMPT),
                 HumanMessage(content=prompt_final)
             ]
-
+            
             respuesta = llm.invoke(mensajes)
+            mostrar_respuesta(respuesta.content)
+            
+            # Mostrar fuentes en la respuesta principal también
+            with st.expander("📑 Ver fuentes completas"):
+                for i, doc in enumerate(docs, 1):
+                    st.markdown(f"**Fuente {i}:**")
+                    st.markdown(f"```\n{doc.page_content}\n```")
+                    st.markdown("---")
 
-            st.markdown("### Respuesta")
-            st.write(respuesta.content)
+else:
+    # Mensaje de bienvenida
+    st.info("👆 **¡Bienvenido!** Escribe tu pregunta técnica en el campo superior para comenzar.")
+    
+    # Ejemplos de preguntas
+    with st.expander("💡 Ejemplos de preguntas que puedes hacer:"):
+        st.markdown("""
+        - "¿Cómo funciona un amplificador operacional en configuración no inversora?"
+        - "Explica el teorema de superposición en circuitos eléctricos"
+        - "¿Qué consideraciones debo tener para el diseño de un filtro pasa-bajos?"
+        - "Calcula la potencia disipada en una resistencia de 100Ω con 5V"
+        """)
+
+# Footer
+st.markdown("---")
+st.markdown(
+    "<p style='text-align: center; color: #cccccc;'>⚡ Desarrollado con tecnología RAG + LangChain + Ollama</p>",
+    unsafe_allow_html=True
+)
