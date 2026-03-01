@@ -1,5 +1,5 @@
 # ============================================
-# AGUWEYBOT PRO - RAG + VISUAL + STREAMING (CORREGIDO)
+# AGUWEYBOT PRO - RAG + VISUAL + STREAMING (SIN PARPADEO)
 # ============================================
 
 import os
@@ -46,11 +46,11 @@ Tu objetivo es asistir a profesionales de la ingeniería al nivel de un experto 
 """
 
 # ==========================
-# CALLBACK PARA STREAMING EN STREAMLIT
+# CALLBACK PARA STREAMING EN STREAMLIT (SIN PARPADEO)
 # ==========================
 
 class StreamlitCallbackHandler(BaseCallbackHandler):
-    """Callback handler para streaming de tokens en Streamlit"""
+    """Callback handler para streaming de tokens en Streamlit - Sin parpadeo molesto"""
     
     def __init__(self, container):
         super().__init__()
@@ -62,18 +62,15 @@ class StreamlitCallbackHandler(BaseCallbackHandler):
         """Procesa cada nuevo token"""
         self.text += token
         
-        # Efecto de escritura con cursor parpadeante
-        if self.first_token:
-            self.container.markdown(f'<div class="respuesta-aguwey typing">{self.text}▌</div>', unsafe_allow_html=True)
-            self.first_token = False
-        else:
-            self.container.markdown(f'<div class="respuesta-aguwey typing">{self.text}▌</div>', unsafe_allow_html=True)
+        # Usar un cursor estático (▌) sin animación de parpadeo
+        # Esto indica que está escribiendo pero no distrae
+        self.container.markdown(f'<div class="respuesta-aguwey streaming">{self.text}<span class="cursor">▌</span></div>', unsafe_allow_html=True)
         
         # Pequeña pausa para efecto visual
-        time.sleep(0.01)
+        time.sleep(0.005)  # Reducido para que sea más rápido y fluido
 
 # ==========================
-# FONDO PERSONALIZADO - CONTRASTE MÁXIMO
+# FONDO PERSONALIZADO - CONTRASTE MÁXIMO (SIN PARPADEO)
 # ==========================
 
 def set_background(image_path):
@@ -83,18 +80,18 @@ def set_background(image_path):
 
         st.markdown(f"""
         <style>
-        /* ===== ESTILOS ADICIONALES PARA STREAMING ===== */
-        @keyframes blink {{
-            0% {{ opacity: 1; }}
-            50% {{ opacity: 0; }}
-            100% {{ opacity: 1; }}
+        /* ===== ESTILOS PARA STREAMING - SIN PARPADEO ===== */
+        .respuesta-aguwey.streaming {{
+            border-right: none;  /* Sin borde derecho que parpadea */
         }}
         
-        .respuesta-aguwey.typing {{
-            border-right: 3px solid #00ffe0;
-            animation: blink 1s infinite;
-            white-space: pre-wrap;
-            word-wrap: break-word;
+        .cursor {{
+            color: #00ffe0;  /* Color turquesa para el cursor */
+            font-weight: bold;
+            display: inline-block;
+            opacity: 1;  /* Sin parpadeo, siempre visible */
+            margin-left: 2px;
+            font-size: 1.2em;
         }}
         
         /* ===== RESET COMPLETO ===== */
@@ -416,11 +413,11 @@ def cargar_retriever():
 
 
 # ==========================
-# FUNCIÓN PARA MOSTRAR RESPUESTA CON STREAMING
+# FUNCIÓN PARA MOSTRAR RESPUESTA CON STREAMING (SIN PARPADEO)
 # ==========================
 
 def mostrar_respuesta_streaming(mensajes):
-    """Muestra la respuesta en tiempo real con efecto de escritura"""
+    """Muestra la respuesta en tiempo real con efecto de escritura - Sin parpadeo"""
     
     # Crear contenedor para la respuesta
     st.markdown("### 🤖 Respuesta de AguweyBot PRO")
