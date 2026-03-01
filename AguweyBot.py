@@ -1,5 +1,5 @@
 # ============================================
-# AGUWEYBOT PRO - RAG + VISUAL + STREAMING (CONTROLES VISIBLES)
+# AGUWEYBOT PRO - RAG + VISUAL + STREAMING (ESTILO PROFESIONAL MEJORADO)
 # ============================================
 
 import os
@@ -45,9 +45,9 @@ Reglas críticas:
 Tu objetivo es asistir a profesionales de la ingeniería al nivel de un experto técnico.
 """
 
-# ==========================
+# ────────────────────────────────────────────
 # CALLBACK PARA STREAMING EN STREAMLIT
-# ==========================
+# ────────────────────────────────────────────
 
 class StreamlitCallbackHandler(BaseCallbackHandler):
     """Callback handler para streaming de tokens en Streamlit"""
@@ -58,14 +58,16 @@ class StreamlitCallbackHandler(BaseCallbackHandler):
         self.text = ""
         
     def on_llm_new_token(self, token: str, **kwargs) -> None:
-        """Procesa cada nuevo token"""
         self.text += token
-        self.container.markdown(f'<div class="respuesta-aguwey streaming">{self.text}<span class="cursor">▌</span></div>', unsafe_allow_html=True)
+        self.container.markdown(
+            f'<div class="respuesta-aguwey streaming">{self.text}<span class="cursor">▌</span></div>',
+            unsafe_allow_html=True
+        )
         time.sleep(0.005)
 
-# ==========================
-# FONDO PERSONALIZADO - CONTRASTE MÁXIMO (CON CONTROLES VISIBLES)
-# ==========================
+# ────────────────────────────────────────────
+# ESTILOS PROFESIONALES - TEMA TÉCNICO OSCURO
+# ────────────────────────────────────────────
 
 def set_background(image_path):
     if os.path.exists(image_path):
@@ -74,111 +76,26 @@ def set_background(image_path):
 
         st.markdown(f"""
         <style>
-        /* ===== CONTROLES RERUN Y STOP - AHORA VISIBLES ===== */
-        /* Botón Rerun (ejecutar nuevamente) */
-        button[title="Rerun"],
-        .stApp header button[kind="secondary"],
-        .stButton button[kind="secondary"],
-        div[data-testid="stStatusWidget"] button,
-        .stApp [data-testid="baseButton-secondary"] {{
-            background-color: #00a8a0 !important;
-            color: white !important;
-            font-weight: bold !important;
-            border: 2px solid #00ffe0 !important;
-            border-radius: 20px !important;
-            box-shadow: 0 0 15px rgba(0, 255, 224, 0.7) !important;
-            margin: 5px !important;
+        :root {{
+            --primary: #00d4ff;
+            --primary-dark: #00a0c7;
+            --accent: #ffd54f;
+            --bg-dark: #0d1117;
+            --bg-card: #161b22;
+            --text: #e6edf3;
+            --text-muted: #8b949e;
+            --border: #30363d;
         }}
-        
-        /* Botón Stop (detener ejecución) */
-        button[title="Stop"],
-        .stApp header button[kind="primary"],
-        .stButton button[kind="primary"],
-        div[data-testid="stStatusWidget"] button:last-child,
-        .stApp [data-testid="baseButton-primary"] {{
-            background-color: #ff4444 !important;
-            color: white !important;
-            font-weight: bold !important;
-            border: 2px solid #ff8888 !important;
-            border-radius: 20px !important;
-            box-shadow: 0 0 15px rgba(255, 68, 68, 0.7) !important;
-            margin: 5px !important;
+
+        html, body, .stApp {{
+            background-color: var(--bg-dark);
+            color: var(--text);
         }}
-        
-        /* Hover effects */
-        button[title="Rerun"]:hover,
-        .stApp header button[kind="secondary"]:hover {{
-            background-color: #00ffe0 !important;
-            color: black !important;
-            transform: scale(1.05) !important;
-            box-shadow: 0 0 20px rgba(0, 255, 224, 0.9) !important;
-        }}
-        
-        button[title="Stop"]:hover,
-        .stApp header button[kind="primary"]:hover {{
-            background-color: #ff6666 !important;
-            color: black !important;
-            transform: scale(1.05) !important;
-            box-shadow: 0 0 20px rgba(255, 68, 68, 0.9) !important;
-        }}
-        
-        /* Widget de estado (Running/Complete) */
-        .stStatusWidget,
-        div[data-testid="stStatusWidget"] {{
-            color: #00ffe0 !important;
-            font-weight: bold !important;
-            background-color: rgba(0, 0, 0, 0.7) !important;
-            padding: 5px 10px !important;
-            border-radius: 20px !important;
-            border: 1px solid #00ffe0 !important;
-        }}
-        
-        /* ===== ESTILOS PARA STREAMING ===== */
-        .cursor {{
-            color: #00ffe0;
-            font-weight: bold;
-            display: inline-block;
-            opacity: 1;
-            margin-left: 2px;
-            font-size: 1.2em;
-        }}
-        
-        /* ===== HEADING SUPERIOR DEL MENÚ ===== */
-        [data-testid="stSidebar"] h1 {{
-            font-size: 2.2rem !important;
-            font-weight: 800 !important;
-            background: linear-gradient(45deg, #00ffe0, #ffd966);
-            -webkit-background-clip: text !important;
-            -webkit-text-fill-color: transparent !important;
-            background-clip: text !important;
-            text-shadow: 0 0 20px rgba(0, 255, 224, 0.7) !important;
-            margin-bottom: 0px !important;
-            padding-bottom: 0px !important;
-            letter-spacing: 2px !important;
-            border-bottom: 3px solid #00ffe0;
-            display: inline-block;
-            width: 100%;
-        }}
-        
-        [data-testid="stSidebar"] h3 {{
-            color: #ffffff !important;
-            font-size: 1.1rem !important;
-            font-weight: 400 !important;
-            font-style: italic !important;
-            margin-top: 5px !important;
-            margin-bottom: 20px !important;
-            opacity: 0.9;
-            border-left: 3px solid #00ffe0;
-            padding-left: 10px;
-        }}
-        
-        /* ===== RESET COMPLETO ===== */
-        html, body, .stApp, .main, .block-container, div, span, p, h1, h2, h3, h4, h5, h6, 
-        label, .stTextInput label, .stMarkdown, .st-cx, .st-bx, .st-ci, .st-ck, .st-cw,
-        .element-container, .row-widget, .stAlert, .stInfo, .stSuccess, .stWarning, .stError,
-        .st-bb, .st-at, .st-ae, .st-af, .st-ag, .st-ah, .st-ai, .st-aj, .st-ak,
-        .stButton p, .stSelectbox label, .stSlider label, .stDateInput label {{
-            color: #ffffff !important;
+
+        .main .block-container {{
+            background-color: transparent !important;
+            padding: 2.5rem 1.5rem 6rem !important;
+            max-width: 1100px !important;
         }}
 
         .stApp {{
@@ -188,282 +105,140 @@ def set_background(image_path):
             background-position: center;
         }}
 
-        .main .block-container {{
-            background-color: rgba(0, 0, 0, 0.9) !important;
-            padding: 2rem;
-            border-radius: 20px;
-            box-shadow: 0 4px 15px rgba(0, 255, 224, 0.2);
-            border: 1px solid rgba(0, 255, 224, 0.3);
-        }}
-
-        h1, h2, h3 {{
-            color: #00ffe0 !important;
-            font-weight: 700 !important;
-            letter-spacing: 0.5px;
-            text-shadow: 0 0 10px rgba(0, 255, 224, 0.5);
-        }}
-
-        h4, h5, h6 {{
-            color: #ffd966 !important;
-            font-weight: 600 !important;
-        }}
-
         .respuesta-aguwey {{
-            background-color: #1a1a2a !important;
-            border-left: 5px solid #00ffe0 !important;
-            border-radius: 10px !important;
-            padding: 20px !important;
-            margin: 15px 0 !important;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.7) !important;
-            font-family: 'Segoe UI', system-ui, sans-serif !important;
-            line-height: 1.6 !important;
-            color: #ffffff !important;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.5rem 2rem;
+            margin: 1.5rem 0;
+            line-height: 1.65;
+            font-family: 'Segoe UI', system-ui, sans-serif;
         }}
 
-        .respuesta-aguwey p {{
-            color: #ffffff !important;
-            line-height: 1.7 !important;
-            font-size: 1.05rem !important;
-            margin-bottom: 15px !important;
-        }}
-
-        .respuesta-aguwey strong {{
-            color: #00ffe0 !important;
-            font-weight: 700 !important;
-        }}
-
-        .respuesta-aguwey em {{
-            color: #ffd966 !important;
-            font-style: italic !important;
-        }}
-
+        .respuesta-aguwey strong {{ color: var(--primary); }}
         .respuesta-aguwey code {{
-            background-color: #2d2d3a !important;
-            color: #ffb86b !important;
-            padding: 2px 6px !important;
-            border-radius: 4px !important;
-            font-family: 'Courier New', monospace !important;
-            font-size: 0.95rem !important;
+            background: #0d1117;
+            padding: 0.15em 0.4em;
+            border-radius: 5px;
+            font-family: 'Consolas', 'Courier New', monospace;
         }}
 
         .respuesta-aguwey pre {{
-            background-color: #0a0a0f !important;
-            border: 1px solid #00ffe0 !important;
-            border-radius: 8px !important;
-            padding: 15px !important;
-            overflow-x: auto !important;
+            background: #0d1117;
+            border: 1px solid var(--border);
+            padding: 1.2rem;
+            border-radius: 8px;
+            overflow-x: auto;
         }}
 
-        .respuesta-aguwey pre code {{
-            background-color: transparent !important;
-            color: #f8f8f2 !important;
-            padding: 0 !important;
+        h1, h2, h3 {{
+            color: var(--primary) !important;
+            font-weight: 600;
         }}
 
-        .respuesta-aguwey ul, .respuesta-aguwey ol {{
-            color: #ffffff !important;
-            margin: 10px 0 !important;
-            padding-left: 25px !important;
-        }}
-
-        .respuesta-aguwey li {{
-            color: #ffffff !important;
-            margin: 5px 0 !important;
-        }}
-
-        .stTextInput label {{
-            color: #ffffff !important;
-            font-size: 1.1rem !important;
-            font-weight: 600 !important;
-            margin-bottom: 5px !important;
-        }}
-
-        .stTextInput input {{
-            background-color: #2a2a3a !important;
-            color: #ffffff !important;
-            border: 2px solid #00ffe0 !important;
-            border-radius: 10px !important;
-            padding: 12px 15px !important;
-            font-size: 1rem !important;
-            font-weight: 400 !important;
-        }}
-
-        .stTextInput input:focus {{
-            border-color: #ffd966 !important;
-            box-shadow: 0 0 15px rgba(0, 255, 224, 0.7) !important;
-            background-color: #3a3a4a !important;
-        }}
-
-        .stTextInput input::placeholder {{
-            color: #aaaaaa !important;
-            font-style: italic !important;
+        h1 {{ font-size: 2.4rem !important; letter-spacing: -0.5px; margin-bottom: 0.4rem !important; }}
+        h2 {{
+            font-size: 1.8rem !important;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.5rem;
+            margin: 2rem 0 1rem;
         }}
 
         [data-testid="stSidebar"] {{
-            background-color: #0a0a0f !important;
-            border-right: 3px solid #00ffe0 !important;
-            box-shadow: 5px 0 15px rgba(0, 255, 224, 0.2) !important;
+            background-color: #0a0e14 !important;
+            border-right: 1px solid var(--border);
         }}
 
-        [data-testid="stSidebar"] * {{
-            color: #ffffff !important;
+        [data-testid="stSidebar"] h1 {{
+            color: var(--primary) !important;
+            font-size: 1.9rem !important;
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin-bottom: 0.2rem;
         }}
 
-        [data-testid="stSidebar"] .stAlert {{
-            background-color: #1a1a2a !important;
-            color: #ffffff !important;
-            border: 1px solid #00ffe0 !important;
-            border-radius: 10px !important;
+        [data-testid="stSidebar"] h3 {{
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            font-weight: 400;
+            margin-top: 0;
         }}
 
-        .streamlit-expanderHeader {{
-            color: #ffffff !important;
-            background-color: #1a1a2a !important;
-            border-radius: 5px !important;
-            font-weight: 600 !important;
-            border: 1px solid #00ffe0 !important;
+        .stTextInput input {{
+            background-color: #0d1117;
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
         }}
 
-        .streamlit-expanderHeader:hover {{
-            color: #00ffe0 !important;
-            background-color: #2a2a3a !important;
+        .stTextInput input:focus {{
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0,212,255,0.15);
         }}
 
-        .streamlit-expanderContent {{
-            background-color: #0f0f1a !important;
-            border: 1px solid #00ffe0 !important;
-            border-radius: 0 0 5px 5px !important;
+        .stButton > button {{
+            background: linear-gradient(145deg, var(--primary-dark), var(--primary));
+            color: black !important;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            padding: 0.65rem 1.4rem;
+            transition: all 0.2s ease;
         }}
 
-        .streamlit-expanderContent * {{
-            color: #ffffff !important;
+        .stButton > button:hover {{
+            background: linear-gradient(145deg, var(--primary), #4dd0ff);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(0,212,255,0.25);
         }}
 
-        .stAlert {{
-            background-color: #1a1a2a !important;
-            border: 1px solid #00ffe0 !important;
-            border-radius: 8px !important;
-        }}
-
-        .stAlert * {{
-            color: #ffffff !important;
-        }}
-
-        .stInfo {{
-            background-color: #1a3a4a !important;
-            border-left-color: #00ffe0 !important;
-        }}
-
-        .stSuccess {{
-            background-color: #1a3a2a !important;
-            border-left-color: #00ff80 !important;
-        }}
-
-        .stWarning {{
-            background-color: #4a3a1a !important;
-            border-left-color: #ffaa00 !important;
-        }}
-
-        .stError {{
-            background-color: #4a1a1a !important;
-            border-left-color: #ff4444 !important;
-        }}
-
-        .stSpinner {{
-            color: #00ffe0 !important;
-        }}
-
-        .stSpinner > div {{
-            border-color: #00ffe0 transparent transparent transparent !important;
-        }}
-
-        .stButton button {{
-            background: linear-gradient(45deg, #00a8a0, #00ffe0) !important;
-            color: #000000 !important;
-            font-weight: 700 !important;
+        button[title="Rerun"],
+        button[kind="secondary"] {{
+            background-color: #238636 !important;
+            color: white !important;
             border: none !important;
-            border-radius: 25px !important;
-            padding: 10px 25px !important;
-            transition: all 0.3s ease !important;
-            text-transform: uppercase !important;
-            letter-spacing: 1px !important;
         }}
 
-        .stButton button:hover {{
-            background: linear-gradient(45deg, #00ffe0, #ffd966) !important;
-            transform: scale(1.05) !important;
-            box-shadow: 0 0 20px rgba(0, 255, 224, 0.7) !important;
+        button[title="Stop"],
+        button[kind="primary"] {{
+            background-color: #da3633 !important;
+            color: white !important;
+            border: none !important;
         }}
 
-        ::-webkit-scrollbar {{
-            width: 10px;
-            height: 10px;
+        .fixed-footer {{
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(13,17,23,0.92);
+            backdrop-filter: blur(8px);
+            border-top: 1px solid var(--border);
+            padding: 0.9rem 2rem;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            z-index: 999;
         }}
 
-        ::-webkit-scrollbar-track {{
-            background: #1a1a2a;
+        .fixed-footer a {{
+            color: var(--primary);
+            text-decoration: none;
         }}
 
-        ::-webkit-scrollbar-thumb {{
-            background: #00ffe0;
-            border-radius: 5px;
-        }}
+        .fixed-footer a:hover {{ text-decoration: underline; }}
 
-        ::-webkit-scrollbar-thumb:hover {{
-            background: #ffd966;
-        }}
-
-        table {{
-            color: #ffffff !important;
-            background-color: #1a1a2a !important;
-            border: 1px solid #00ffe0 !important;
-        }}
-
-        th {{
-            background-color: #2a2a3a !important;
-            color: #00ffe0 !important;
-            font-weight: 700 !important;
-            border-bottom: 2px solid #00ffe0 !important;
-        }}
-
-        td {{
-            color: #ffffff !important;
-            border-bottom: 1px solid #3a3a4a !important;
-        }}
-
-        tr:hover {{
-            background-color: #2a2a3a !important;
-        }}
-
-        .stCaption, caption, .small, .st-caption {{
-            color: #cccccc !important;
-            font-style: italic !important;
-        }}
-
-        a {{
-            color: #00ffe0 !important;
-            text-decoration: none !important;
-            font-weight: 600 !important;
-        }}
-
-        a:hover {{
-            color: #ffd966 !important;
-            text-decoration: underline !important;
-        }}
-
-        code {{
-            background-color: #2a2a3a !important;
-            color: #ffb86b !important;
-            padding: 2px 5px !important;
-            border-radius: 4px !important;
-        }}
+        ::-webkit-scrollbar {{ width: 8px; }}
+        ::-webkit-scrollbar-track {{ background: #0d1117; }}
+        ::-webkit-scrollbar-thumb {{ background: #444d56; border-radius: 4px; }}
+        ::-webkit-scrollbar-thumb:hover {{ background: var(--primary-dark); }}
         </style>
         """, unsafe_allow_html=True)
 
-
-# ==========================
-# CARGAR MODELO
-# ==========================
+# ────────────────────────────────────────────
+# CARGA DE MODELOS (cacheados)
+# ────────────────────────────────────────────
 
 @st.cache_resource
 def cargar_llm():
@@ -475,26 +250,20 @@ def cargar_llm():
         repeat_penalty=1.1
     )
 
-
 @st.cache_resource
 def cargar_retriever():
     embeddings = OllamaEmbeddings(model=EMBED_MODEL)
-
     vectorstore = Chroma(
         persist_directory=PERSIST_DIRECTORY,
         embedding_function=embeddings
     )
-
     return vectorstore.as_retriever(search_kwargs={"k": 4})
 
-
-# ==========================
-# FUNCIÓN PARA MOSTRAR RESPUESTA CON STREAMING
-# ==========================
+# ────────────────────────────────────────────
+# STREAMING DE RESPUESTA
+# ────────────────────────────────────────────
 
 def mostrar_respuesta_streaming(mensajes):
-    """Muestra la respuesta en tiempo real con efecto de escritura"""
-    
     st.markdown("### 🤖 Respuesta de AguweyBot PRO")
     st.markdown("---")
     response_container = st.empty()
@@ -512,17 +281,18 @@ def mostrar_respuesta_streaming(mensajes):
     )
     
     response = llm_stream.invoke(mensajes)
-    response_container.markdown(f'<div class="respuesta-aguwey">{response.content}</div>', unsafe_allow_html=True)
-    
+    response_container.markdown(
+        f'<div class="respuesta-aguwey">{response.content}</div>',
+        unsafe_allow_html=True
+    )
     return response
 
-
-# ==========================
+# ────────────────────────────────────────────
 # INTERFAZ PRINCIPAL
-# ==========================
+# ────────────────────────────────────────────
 
 st.set_page_config(
-    page_title="AguweyBot PRO", 
+    page_title="AguweyBot PRO",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -531,8 +301,8 @@ st.set_page_config(
 set_background("fondo.png")
 
 with st.sidebar:
-    st.markdown("# ⚡ AGUWEYBOT PRO")
-    st.markdown("### *Asistente Técnico Inteligente*")
+    st.markdown("# ⚡AGUWEYBOT")
+    st.markdown("### *Asistente Inteligente*")
 
     if os.path.exists("logo.png"):
         st.image("logo.png", width=220)
@@ -556,24 +326,11 @@ with st.sidebar:
     st.success("⚡ Streaming: Activado")
     
     st.markdown("---")
-    st.caption("© 2024 AguweyBot PRO v3.0")
+    st.caption("CC-NC-SA: 2026 AguweyBot PRO")
     st.caption("Arquitectura RAG Profesional con Streaming")
 
 # Título principal
-st.markdown("""
-<style>
-@keyframes glow {
-    0% { text-shadow: 0 0 10px #00ffe0; }
-    50% { text-shadow: 0 0 20px #00ffe0, 0 0 30px #ffd966; }
-    100% { text-shadow: 0 0 10px #00ffe0; }
-}
-.titulo-principal {
-    animation: glow 3s infinite;
-}
-</style>
-""", unsafe_allow_html=True)
-
-st.markdown('<h1 class="titulo-principal">⚡ AguweyBot PRO</h1>', unsafe_allow_html=True)
+st.markdown('<h1 style="color: #00d4ff; letter-spacing: -0.5px;">⚡ AguweyBot PRO</h1>', unsafe_allow_html=True)
 st.caption("Sistema cognitivo con recuperación semántica y generación en tiempo real")
 
 # Cargar modelos
@@ -581,14 +338,13 @@ with st.spinner("🚀 Inicializando sistemas cognitivos..."):
     llm = cargar_llm()
     retriever = cargar_retriever()
 
-# Input de pregunta
+# Entrada del usuario
 pregunta = st.text_input(
     "🔍 **Escribe tu consulta técnica:**",
     placeholder="Ej: ¿Cómo calcular la resistencia equivalente en un circuito paralelo?",
     key="pregunta_input"
 )
 
-# Procesar pregunta
 if pregunta:
     with st.spinner("🧠 Buscando en la base de conocimiento..."):
         docs = retriever.invoke(pregunta)
@@ -598,20 +354,18 @@ if pregunta:
             SystemMessage(content=SYSTEM_PROMPT),
             HumanMessage(content=pregunta)
         ]
-        
-        respuesta = mostrar_respuesta_streaming(mensajes)
-        st.info("ℹ️ No se encontraron documentos relevantes en la base de conocimiento. Respuesta basada en conocimiento general.")
-        
+        mostrar_respuesta_streaming(mensajes)
+        st.info("ℹ️ No se encontraron documentos relevantes. Respuesta basada en conocimiento general del modelo.")
     else:
         contexto_rag = "\n\n".join([doc.page_content for doc in docs])
         
         with st.sidebar:
             st.markdown("### 📚 Documentos Recuperados")
-            st.markdown(f"*Fuentes encontradas: {len(docs)}*")
+            st.markdown(f"Fuentes encontradas: **{len(docs)}**")
             for i, doc in enumerate(docs, 1):
-                with st.expander(f"📄 Fuente {i}"):
-                    st.markdown(f"**Contenido:**\n{doc.page_content[:200]}...")
-        
+                with st.expander(f"Fuente {i}"):
+                    st.markdown(doc.page_content[:350] + "..." if len(doc.page_content) > 350 else doc.page_content)
+
         prompt_final = f"""
 Contexto técnico relevante:
 {contexto_rag}
@@ -631,28 +385,31 @@ Pregunta del usuario:
             HumanMessage(content=prompt_final)
         ]
         
-        respuesta = mostrar_respuesta_streaming(mensajes)
+        mostrar_respuesta_streaming(mensajes)
         
         with st.expander("📑 Ver fuentes completas"):
             for i, doc in enumerate(docs, 1):
                 st.markdown(f"**Fuente {i}:**")
-                st.markdown(f"```\n{doc.page_content}\n```")
+                st.code(doc.page_content, language=None)
                 st.markdown("---")
-
 else:
-    st.info("👆 **¡Bienvenido!** Escribe tu pregunta técnica en el campo superior para comenzar.")
+    st.info("👆 **¡Bienvenido!** Escribe tu pregunta técnica arriba para comenzar.")
     
     with st.expander("💡 Ejemplos de preguntas que puedes hacer:"):
         st.markdown("""
-        - "¿Cómo funciona un amplificador operacional en configuración no inversora?"
-        - "Explica el teorema de superposición en circuitos eléctricos"
-        - "¿Qué consideraciones debo tener para el diseño de un filtro pasa-bajos?"
-        - "Calcula la potencia disipada en una resistencia de 100Ω con 5V"
+        - ¿Cómo funciona un amplificador operacional en configuración no inversora?
+        - Explica el teorema de superposición en circuitos eléctricos
+        - ¿Qué consideraciones debo tener para el diseño de un filtro pasa-bajos?
+        - Calcula la potencia disipada en una resistencia de 100 Ω con 5 V
         """)
 
-# Footer
-st.markdown("---")
-st.markdown(
-    "<p style='text-align: center; color: #cccccc;'>⚡ Desarrollado con tecnología RAG + LangChain + Ollama + Streaming</p>",
-    unsafe_allow_html=True
-)
+# Footer con licencia
+st.markdown("""
+<div class="fixed-footer">
+    <strong>Licencia:</strong> CC-NC-SA  
+      •  
+    Prof. Raymond Rosa Ávila  
+      •  
+    AguweyBot PRO 2026
+</div>
+""", unsafe_allow_html=True)
