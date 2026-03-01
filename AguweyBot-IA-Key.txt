@@ -1,0 +1,12 @@
+Activar Asistente IA:
+Permiso:
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+.\venv\Scripts\Activate.ps1
+streamlit run AguweyBot.py
+
+AI: Directo del Terminal
+ollama run phi3:mini
+
+Motor en otro terminal abierto: 
+ollama serve
+
