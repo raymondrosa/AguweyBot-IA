@@ -1,5 +1,5 @@
 # ============================================
-# AGUWEYBOT PRO - RAG + VISUAL (CONTRASTE MÁXIMO - CORREGIDO)
+# AGUWEYBOT PRO - RAG + VISUAL + STREAMING (CORREGIDO)
 # ============================================
 
 import os
@@ -9,6 +9,8 @@ from langchain_community.chat_models import ChatOllama
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import OllamaEmbeddings
+from langchain_core.callbacks import BaseCallbackHandler
+import time
 
 MODEL_NAME = "phi3:mini"
 EMBED_MODEL = "nomic-embed-text"
@@ -44,7 +46,34 @@ Tu objetivo es asistir a profesionales de la ingeniería al nivel de un experto 
 """
 
 # ==========================
-# FONDO PERSONALIZADO - CONTRASTE MÁXIMO (CORREGIDO)
+# CALLBACK PARA STREAMING EN STREAMLIT
+# ==========================
+
+class StreamlitCallbackHandler(BaseCallbackHandler):
+    """Callback handler para streaming de tokens en Streamlit"""
+    
+    def __init__(self, container):
+        super().__init__()
+        self.container = container
+        self.text = ""
+        self.first_token = True
+        
+    def on_llm_new_token(self, token: str, **kwargs) -> None:
+        """Procesa cada nuevo token"""
+        self.text += token
+        
+        # Efecto de escritura con cursor parpadeante
+        if self.first_token:
+            self.container.markdown(f'<div class="respuesta-aguwey typing">{self.text}▌</div>', unsafe_allow_html=True)
+            self.first_token = False
+        else:
+            self.container.markdown(f'<div class="respuesta-aguwey typing">{self.text}▌</div>', unsafe_allow_html=True)
+        
+        # Pequeña pausa para efecto visual
+        time.sleep(0.01)
+
+# ==========================
+# FONDO PERSONALIZADO - CONTRASTE MÁXIMO
 # ==========================
 
 def set_background(image_path):
@@ -54,8 +83,21 @@ def set_background(image_path):
 
         st.markdown(f"""
         <style>
+        /* ===== ESTILOS ADICIONALES PARA STREAMING ===== */
+        @keyframes blink {{
+            0% {{ opacity: 1; }}
+            50% {{ opacity: 0; }}
+            100% {{ opacity: 1; }}
+        }}
+        
+        .respuesta-aguwey.typing {{
+            border-right: 3px solid #00ffe0;
+            animation: blink 1s infinite;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }}
+        
         /* ===== RESET COMPLETO ===== */
-        /* Forzar que TODO el texto sea blanco por defecto */
         html, body, .stApp, .main, .block-container, div, span, p, h1, h2, h3, h4, h5, h6, 
         label, .stTextInput label, .stMarkdown, .st-cx, .st-bx, .st-ci, .st-ck, .st-cw,
         .element-container, .row-widget, .stAlert, .stInfo, .stSuccess, .stWarning, .stError,
@@ -64,7 +106,6 @@ def set_background(image_path):
             color: #ffffff !important;
         }}
 
-        /* Fondo de la app */
         .stApp {{
             background-image: url("data:image/png;base64,{encoded}");
             background-size: cover;
@@ -72,7 +113,6 @@ def set_background(image_path):
             background-position: center;
         }}
 
-        /* Contenedor principal con fondo semitransparente */
         .main .block-container {{
             background-color: rgba(0, 0, 0, 0.9) !important;
             padding: 2rem;
@@ -81,7 +121,6 @@ def set_background(image_path):
             border: 1px solid rgba(0, 255, 224, 0.3);
         }}
 
-        /* ===== TÍTULOS ===== */
         h1, h2, h3 {{
             color: #00ffe0 !important;
             font-weight: 700 !important;
@@ -94,7 +133,6 @@ def set_background(image_path):
             font-weight: 600 !important;
         }}
 
-        /* ===== RESPUESTAS ===== */
         .respuesta-aguwey {{
             background-color: #1a1a2a !important;
             border-left: 5px solid #00ffe0 !important;
@@ -102,6 +140,9 @@ def set_background(image_path):
             padding: 20px !important;
             margin: 15px 0 !important;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.7) !important;
+            font-family: 'Segoe UI', system-ui, sans-serif !important;
+            line-height: 1.6 !important;
+            color: #ffffff !important;
         }}
 
         .respuesta-aguwey p {{
@@ -155,7 +196,6 @@ def set_background(image_path):
             margin: 5px 0 !important;
         }}
 
-        /* ===== CAJA DE PREGUNTA ===== */
         .stTextInput label {{
             color: #ffffff !important;
             font-size: 1.1rem !important;
@@ -184,7 +224,6 @@ def set_background(image_path):
             font-style: italic !important;
         }}
 
-        /* ===== BARRA LATERAL ===== */
         .css-1d391kg, .sidebar, [data-testid="stSidebar"] {{
             background-color: #0a0a0f !important;
             border-right: 2px solid #00ffe0 !important;
@@ -206,7 +245,6 @@ def set_background(image_path):
             border: 1px solid #00ffe0 !important;
         }}
 
-        /* ===== EXPANDERS ===== */
         .streamlit-expanderHeader {{
             color: #ffffff !important;
             background-color: #1a1a2a !important;
@@ -228,7 +266,6 @@ def set_background(image_path):
             color: #ffffff !important;
         }}
 
-        /* ===== ALERTS ===== */
         .stAlert {{
             background-color: #1a1a2a !important;
             border: 1px solid #00ffe0 !important;
@@ -259,7 +296,6 @@ def set_background(image_path):
             border-left-color: #ff4444 !important;
         }}
 
-        /* ===== SPINNER ===== */
         .stSpinner {{
             color: #00ffe0 !important;
         }}
@@ -268,7 +304,6 @@ def set_background(image_path):
             border-color: #00ffe0 transparent transparent transparent !important;
         }}
 
-        /* ===== BOTONES ===== */
         .stButton button {{
             background: linear-gradient(45deg, #00a8a0, #00ffe0) !important;
             color: #000000 !important;
@@ -287,7 +322,6 @@ def set_background(image_path):
             box-shadow: 0 0 20px rgba(0, 255, 224, 0.7) !important;
         }}
 
-        /* ===== SCROLLBAR ===== */
         ::-webkit-scrollbar {{
             width: 10px;
             height: 10px;
@@ -306,7 +340,6 @@ def set_background(image_path):
             background: #ffd966;
         }}
 
-        /* ===== TABLAS ===== */
         table {{
             color: #ffffff !important;
             background-color: #1a1a2a !important;
@@ -329,13 +362,11 @@ def set_background(image_path):
             background-color: #2a2a3a !important;
         }}
 
-        /* ===== CAPTIONS Y TEXTOS PEQUEÑOS ===== */
         .stCaption, caption, .small, .st-caption {{
             color: #cccccc !important;
             font-style: italic !important;
         }}
 
-        /* ===== ENLACES ===== */
         a {{
             color: #00ffe0 !important;
             text-decoration: none !important;
@@ -347,7 +378,6 @@ def set_background(image_path):
             text-decoration: underline !important;
         }}
 
-        /* ===== CÓDIGO EN GENERAL ===== */
         code {{
             background-color: #2a2a3a !important;
             color: #ffb86b !important;
@@ -386,14 +416,38 @@ def cargar_retriever():
 
 
 # ==========================
-# FUNCIÓN PARA MOSTRAR RESPUESTA
+# FUNCIÓN PARA MOSTRAR RESPUESTA CON STREAMING
 # ==========================
 
-def mostrar_respuesta(respuesta_texto):
-    """Muestra la respuesta en un contenedor con estilo mejorado"""
+def mostrar_respuesta_streaming(mensajes):
+    """Muestra la respuesta en tiempo real con efecto de escritura"""
+    
+    # Crear contenedor para la respuesta
     st.markdown("### 🤖 Respuesta de AguweyBot PRO")
     st.markdown("---")
-    st.markdown(f'<div class="respuesta-aguwey">{respuesta_texto}</div>', unsafe_allow_html=True)
+    response_container = st.empty()
+    
+    # Crear el callback handler
+    callback = StreamlitCallbackHandler(response_container)
+    
+    # Crear un nuevo LLM específicamente para streaming
+    llm_stream = ChatOllama(
+        model=MODEL_NAME,
+        temperature=0.0,
+        num_ctx=4096,
+        top_p=0.9,
+        repeat_penalty=1.1,
+        streaming=True,
+        callbacks=[callback]
+    )
+    
+    # Generar respuesta con streaming
+    response = llm_stream.invoke(mensajes)
+    
+    # Mostrar versión final sin cursor
+    response_container.markdown(f'<div class="respuesta-aguwey">{response.content}</div>', unsafe_allow_html=True)
+    
+    return response
 
 
 # ==========================
@@ -423,18 +477,20 @@ with st.sidebar:
     st.markdown("""
     - 📚 RAG Semántico
     - 🔬 Análisis Técnico
-    - 💡 Respuestas Precisas
+    - 💡 Respuestas en Tiempo Real
     - 🎨 Visual Mejorado
+    - ⚡ Streaming Avanzado
     """)
     
     st.markdown("---")
     st.markdown("### 📊 Estado del Sistema")
     st.success("✅ Modelo: phi3:mini")
     st.info(f"📁 Vector DB: {PERSIST_DIRECTORY}")
+    st.success("⚡ Streaming: Activado")
     
     st.markdown("---")
-    st.caption("© 2024 AguweyBot PRO v2.0")
-    st.caption("Arquitectura RAG Profesional")
+    st.caption("© 2024 AguweyBot PRO v3.0")
+    st.caption("Arquitectura RAG Profesional con Streaming")
 
 # Título principal
 st.markdown("""
@@ -452,7 +508,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown('<h1 class="titulo-principal">⚡ AguweyBot PRO</h1>', unsafe_allow_html=True)
-st.caption("Sistema cognitivo con recuperación semántica y visual mejorado")
+st.caption("Sistema cognitivo con recuperación semántica y generación en tiempo real")
 
 # Cargar modelos
 with st.spinner("🚀 Inicializando sistemas cognitivos..."):
@@ -468,34 +524,36 @@ pregunta = st.text_input(
 
 # Procesar pregunta
 if pregunta:
-    with st.spinner("🧠 Analizando documentación y generando respuesta..."):
+    # Mostrar spinner solo durante la recuperación de documentos
+    with st.spinner("🧠 Buscando en la base de conocimiento..."):
         docs = retriever.invoke(pregunta)
 
-        if not docs:
-            # Sin contexto RAG
-            mensajes = [
-                SystemMessage(content=SYSTEM_PROMPT),
-                HumanMessage(content=pregunta)
-            ]
-            respuesta = llm.invoke(mensajes)
-            mostrar_respuesta(respuesta.content)
-            
-            # Mostrar advertencia
-            st.info("ℹ️ No se encontraron documentos relevantes en la base de conocimiento. Respuesta basada en conocimiento general.")
-            
-        else:
-            # Con contexto RAG
-            contexto_rag = "\n\n".join([doc.page_content for doc in docs])
-            
-            # Mostrar documentos recuperados en el sidebar
-            with st.sidebar:
-                st.markdown("### 📚 Documentos Recuperados")
-                st.markdown(f"*Fuentes encontradas: {len(docs)}*")
-                for i, doc in enumerate(docs, 1):
-                    with st.expander(f"📄 Fuente {i}"):
-                        st.markdown(f"**Contenido:**\n{doc.page_content[:200]}...")
-            
-            prompt_final = f"""
+    if not docs:
+        # Sin contexto RAG
+        mensajes = [
+            SystemMessage(content=SYSTEM_PROMPT),
+            HumanMessage(content=pregunta)
+        ]
+        
+        # Usar streaming para la respuesta
+        respuesta = mostrar_respuesta_streaming(mensajes)
+        
+        # Mostrar advertencia después de la respuesta
+        st.info("ℹ️ No se encontraron documentos relevantes en la base de conocimiento. Respuesta basada en conocimiento general.")
+        
+    else:
+        # Con contexto RAG
+        contexto_rag = "\n\n".join([doc.page_content for doc in docs])
+        
+        # Mostrar documentos recuperados en el sidebar
+        with st.sidebar:
+            st.markdown("### 📚 Documentos Recuperados")
+            st.markdown(f"*Fuentes encontradas: {len(docs)}*")
+            for i, doc in enumerate(docs, 1):
+                with st.expander(f"📄 Fuente {i}"):
+                    st.markdown(f"**Contenido:**\n{doc.page_content[:200]}...")
+        
+        prompt_final = f"""
 Contexto técnico relevante:
 {contexto_rag}
 
@@ -509,20 +567,20 @@ Instrucciones:
 Pregunta del usuario:
 {pregunta}
 """
-            mensajes = [
-                SystemMessage(content=SYSTEM_PROMPT),
-                HumanMessage(content=prompt_final)
-            ]
-            
-            respuesta = llm.invoke(mensajes)
-            mostrar_respuesta(respuesta.content)
-            
-            # Mostrar fuentes en la respuesta principal también
-            with st.expander("📑 Ver fuentes completas"):
-                for i, doc in enumerate(docs, 1):
-                    st.markdown(f"**Fuente {i}:**")
-                    st.markdown(f"```\n{doc.page_content}\n```")
-                    st.markdown("---")
+        mensajes = [
+            SystemMessage(content=SYSTEM_PROMPT),
+            HumanMessage(content=prompt_final)
+        ]
+        
+        # Usar streaming para la respuesta
+        respuesta = mostrar_respuesta_streaming(mensajes)
+        
+        # Mostrar fuentes en la respuesta principal también
+        with st.expander("📑 Ver fuentes completas"):
+            for i, doc in enumerate(docs, 1):
+                st.markdown(f"**Fuente {i}:**")
+                st.markdown(f"```\n{doc.page_content}\n```")
+                st.markdown("---")
 
 else:
     # Mensaje de bienvenida
@@ -540,6 +598,6 @@ else:
 # Footer
 st.markdown("---")
 st.markdown(
-    "<p style='text-align: center; color: #cccccc;'>⚡ Desarrollado con tecnología RAG + LangChain + Ollama</p>",
+    "<p style='text-align: center; color: #cccccc;'>⚡ Desarrollado con tecnología RAG + LangChain + Ollama + Streaming</p>",
     unsafe_allow_html=True
 )
