@@ -1,3 +1,5 @@
+Licencia: Código de registro: 2603014725877; CC-NC-SA; Prof. Raymond Rosa Ávila
+
 # ⚡ AguweyBot PRO
 
 **Asistente técnico inteligente con RAG + streaming + interfaz profesional**  
