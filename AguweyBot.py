@@ -69,6 +69,36 @@ EJEMPLOS DE USO APROPIADO:
 ⚠️ Precaución:
 ✅ Verificación:
 """
+
+EMOJI_MAP = {
+    # Técnico/Científico
+    "analisis": "🔬",
+    "calculo": "📊",
+    "ingenieria": "⚙️",
+    "matematicas": "📐",
+    "electricidad": "⚡",
+    "alerta": "⚠️",
+    "exito": "✅",
+    "error": "❌",
+    "dato": "📌",
+    
+    # Creativo/Literario
+    "escritura": "✍️",
+    "libro": "📖",
+    "teatro": "🎭",
+    "inspiracion": "✨",
+    "dialogo": "💬",
+    "personaje": "👤",
+    "trama": "📜",
+    
+    # Generales
+    "idea": "💡",
+    "conclusion": "🎯",
+    "importante": "❗",
+    "pregunta": "❓",
+    "tiempo": "⏱️",
+    "recurso": "📚"
+}
 # ────────────────────────────────────────────
 # CALLBACK PARA STREAMING EN STREAMLIT
 # ────────────────────────────────────────────
