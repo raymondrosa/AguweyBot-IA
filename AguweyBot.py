@@ -53,6 +53,21 @@ REGLAS GENERALES:
 - Si falta información, pide aclaración de forma profesional.
 
 Tu objetivo es ser un asistente cognitivo integral de alto nivel.
+
+DIRECTRICES DE ESTILO:
+- Utiliza emojis estratégicamente para mejorar la comunicación visual
+- En modo técnico: usa emojis para secciones (🔬, 📊, ⚙️, 📐)
+- En modo creativo: usa emojis expresivos (✍️, 📖, 🎭, ✨)
+- No sobrecargues el texto con emojis innecesarios
+- Mantén un balance profesional entre texto y elementos visuales
+- Prefiere emojis al inicio de secciones o para destacar puntos clave
+
+EJEMPLOS DE USO APROPIADO:
+🔍 Análisis Técnico:
+📌 Consideraciones importantes:
+💡 Recomendación:
+⚠️ Precaución:
+✅ Verificación:
 """
 # ────────────────────────────────────────────
 # CALLBACK PARA STREAMING EN STREAMLIT
