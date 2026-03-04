@@ -622,7 +622,7 @@ def mostrar_respuesta_streaming(mensajes):
             temperature=0.0,
             num_ctx=4096,
             top_p=0.9,
-            repeat_penalty=1.4,
+            repeat_penalty=1.1,
             streaming=True,
             callbacks=[callback]
         )
