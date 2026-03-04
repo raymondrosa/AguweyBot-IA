@@ -1,126 +1,150 @@
 Licencia: Código de registro: 2603034756097; CC-NC-SA; Prof. Raymond Rosa Ávila
 
 📘 README.md — AguweyBot PRO
-Asistente Inteligente con RAG, análisis de documentos y modos técnico/creativo
+Asistente Inteligente con RAG, análisis de documentos y OCR integrado
+Desarrollado por: Prof. Raymond Rosa Ávila
 
 ⚡ AguweyBot PRO
-AguweyBot PRO es un asistente cognitivo avanzado diseñado para:
+AguweyBot PRO es un asistente cognitivo avanzado para:
 
-🔬 Ingeniería y ciencias aplicadas
-✍️ Escritura creativa y narrativa profesional
-📚 Análisis de documentos con RAG
-🧠 Memoria contextual
-🖼️ OCR (lectura de imágenes con texto)
+Ingeniería civil y ciencias aplicadas
+Escritura creativa y producción literaria
+Análisis profundo de documentos
+Clasificación de información y recuperación semántica (RAG)
+Memoria conversacional extendida
+OCR para lectura de imágenes (Tesseract)
 
-Está optimizado para funcionar localmente usando:
+Funciona completamente de manera local, sin necesidad de internet, utilizando:
 
-Ollama + Modelo Phi-3 (phi3:mini)
+Ollama + Modelo Phi-3 ("phi3:mini")
 Streamlit
-RAG con ChromaDB
-Lectura de PDF, Word, Excel, TXT e Imágenes
+ChromaDB
+LangChain
+
+Ideal para:
+
+Docentes
+Investigadores
+Escritores
+Estudiantes avanzados
+Profesionales en ingeniería
 
 
-📥 1. Requisitos del sistema
-🟦 Sistema operativo
-
-Windows 10 o Windows 11
-
-🟦 Software necesario
+🟦 1. Requisitos del sistema
+Sistema operativo:
+✔️ Windows 10 / Windows 11 (recomendado)
+Software necesario:
 
 Python 3.10 – 3.12
-Ollama (para ejecutar modelos locales)
-Git (opcional para clonar el repo)
+Ollama para Windows
+Git (opcional)
 
 
-🧰 2. Instalación paso a paso
+⚙️ 2. Instalación paso a paso (Windows)
 
 ✔️ 2.1 Instalar Ollama
 
-Entra a: https://ollama.com/download
-Descarga la versión para Windows
-Instálala normalmente
-En CMD prueba:
+Visite: https://ollama.com/download
+Descargue la versión para Windows
+Instale normalmente
+En CMD verifique:
 
 ollama --version
 
-Debe mostrar la versión instalada.
-
-✔️ 2.2 Descargar el modelo Phi-3
-Ejecuta:
+Luego descargue el modelo:
 ollama pull phi3:mini
 
 
-✔️ 2.3 Clonar o descargar este repositorio
+✔️ 2.2 Descargar AguweyBot PRO
+Desde GitHub:
 git clone https://github.com/TU-USUARIO/AguweyBotPRO.git
-
-o descarga el ZIP desde GitHub.
-
-✔️ 2.4 Crear y activar un entorno virtual (venv)
-Dentro del folder del proyecto:
 cd AguweyBotPRO
+
+O descargue el ZIP desde GitHub.
+
+✔️ 2.3 Crear entorno virtual (recomendado)
 python -m venv venv
 
 Activarlo:
 venv\Scripts\activate
 
-Debes ver:
-(venv) C:\ruta...
 
-
-✔️ 2.5 Instalar dependencias del proyecto
-Con el venv activado:
+✔️ 2.4 Instalar dependencias
+Con el entorno activado:
 pip install -r requirements.txt
 
-Si no tienes requirements.txt, instala manualmente:
+Si no usa requirements.txt:
 pip install streamlit langchain-community chromadb pypdf python-docx pillow pytesseract openpyxl pandas
 
 
 🔤 3. Instalación de Tesseract OCR (Opcional pero recomendado)
-Permite que AguweyBot lea texto en imágenes (capturas de pantalla, escaneos, pizarras, etc).
-
-✔️ 3.1 Descargar el instalador oficial
-Desde:
+Permite a AguweyBot leer imágenes con texto.
+✔️ Descargar Tesseract para Windows
+Página oficial:
 https://github.com/UB-Mannheim/tesseract/wiki
-Descarga el instalador:
-✔️ tesseract-ocr-w64-setup-5.x.x.exe
-(Para Windows 64 bits)
+Descargue:
+👉 tesseract-ocr-w64-setup-5.x.x.exe
+✔️ Durante la instalación:
 
-✔️ 3.2 Instalar Tesseract
-Durante la instalación:
-✔️ Importante:
-Marca la casilla Add Tesseract to the system PATH
-Ruta por defecto recomendada:
+Mantenga la ruta por defecto:
+
 C:\Program Files\Tesseract-OCR\
 
 
-✔️ 3.3 Probar que funciona
-En una nueva ventana de CMD:
+MARQUE esta opción importante:
+
+✔️ “Add Tesseract to the system PATH”
+✔️ Verifique la instalación:
+En CMD escriba:
 tesseract --version
 
-Debe imprimir la versión.
+Debe mostrar la versión.
 
-✔️ 3.4 Instalar puente Python-Tesseract
-Con el venv activo:
-pip install pytesseract
-
-
-📂 4. Ejecutar AguweyBot PRO
-Con Ollama corriendo en el fondo, ejecuta:
+▶️ 4. Ejecutar AguweyBot PRO
+Con el entorno virtual activado:
 streamlit run AguweyBot.py
 
-Automáticamente se abrirá una ventana en el navegador:
+La aplicación abrirá en:
 http://localhost:8501
 
 
-📎 5. Funcionalidades principales
-🔬 Modo Técnico (Ingeniería y ciencia)
-Explicaciones rigurosas, estructuradas, con precisión conceptual.
+📂 5. Estructura del proyecto
+AguweyBotPRO/
+│── AguweyBot.py
+│── conocimiento.txt
+│── vector_db/              # Generado automáticamente
+│── fondo.png               # Opcional
+│── logo.png                # Opcional
+│── venv/                   # Entorno virtual
+│── requirements.txt
+
+
+📎 6. Funcionalidades principales
+🔬 Modo Técnico (Ingeniería)
+
+Explicaciones rigurosas
+Estructuras, suelos, carreteras, BIM, geotecnia
+Solución de problemas paso a paso
+
 ✍️ Modo Creativo (Literatura)
-Mejora de estilo, desarrollo narrativo, personajes, diálogos, etc.
-📚 RAG (Retrieval Augmented Generation)
-Usa un archivo conocimiento.txt o documentos cargados por el usuario.
-📄 Análisis de documentos
-Admite:
+
+Análisis narrativo
+Redacción creativa
+Corrección de estilo
+Desarrollo de personajes y tramas
+
+📚 RAG Avanzado
+
+Recuperación semántica con ChromaDB
+Puede usar:
+
+conocimiento.txt
+documentos cargados por el usuario
+
+
+
+📄 Análisis automático de documentos
+Formatos soportados:
 
 PDF
 Word (.docx)
@@ -128,61 +152,57 @@ TXT
 Excel
 Imágenes (con OCR)
 
-🧠 Memoria conversacional
-Mantiene coherencia usando las últimas interacciones (MAX_HISTORY).
-⚡ Streaming avanzado
-Las respuestas se escriben en tiempo real.
+📸 OCR (opcional)
 
-🗂️ 6. Estructura del proyecto
-AguweyBotPRO/
-│
-├── AguweyBot.py
-├── conocimiento.txt
-├── vector_db/           # generado automáticamente
-├── logo.png             # opcional
-├── fondo.png            # opcional
-└── venv/                # entorno virtual
+Lee texto en imágenes
+Perfecto para fotos de pizarras, notas o escaneos
+
+⚡ Streaming
+
+Respuestas en tiempo real al estilo ChatGPT
 
 
-🔄 7. Flujo de funcionamiento interno
+🧠 7. Flujo interno del sistema
 Usuario
-   ↓
-Carga documento (PDF/Word/Excel/Imagen)
-   ↓
-Extracción de texto
-   ↓
-División en fragmentos (chunking)
-   ↓
-Vectorización (Nomic Embed)
-   ↓
-Búsqueda semántica (ChromaDB)
-   ↓
-Construcción del prompt con contexto
-   ↓
-Respuesta del modelo phi3:mini vía Ollama
-   ↓
-Interfaz en Streamlit
+  ↓
+Sube documento / escribe consulta
+  ↓
+Extracción de texto (PDF/Word/Excel/OCR)
+  ↓
+Segmentación en fragmentos (chunking)
+  ↓
+Vectorización → Nomic Embed
+  ↓
+Búsqueda semántica en ChromaDB (RAG)
+  ↓
+Construcción dinámica del prompt
+  ↓
+Modelo Phi-3 (Ollama)
+  ↓
+Respuesta en Streamlit (con streaming)
 
 
 🛠️ 8. Errores comunes y soluciones
-❗ Tesseract no funciona en CMD
-Solución: agregar al PATH:
+❗ "tesseract no se reconoce"
+
+Agregar al PATH:
+
 C:\Program Files\Tesseract-OCR\
 
 ❗ No lee PDF
-Asegúrate de tener:
+Instalar:
 pip install pypdf
 
-❗ No lee Word
-Instala:
+❗ No lee docx
+Instalar:
 pip install python-docx
 
-❗ Excel no abre
-Instala:
+❗ Excel falla
+Instalar:
 pip install openpyxl
 
-❗ No encuentra Ollama
-Reinicia Windows después de instalarlo.
+❗ Ollama no responde
+Reiniciar Windows después de instalar Ollama.
 
 🧑‍🏫 9. Créditos
 Desarrollado por:
