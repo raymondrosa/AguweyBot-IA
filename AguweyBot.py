@@ -1,9 +1,10 @@
 # ============================================
 # AGUWEYBOT PRO - CON MEMORIA Y CONTRASTE MEJORADO
 # ============================================
-
 import os
 import base64
+import time
+
 import streamlit as st
 from langchain_community.chat_models import ChatOllama
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
@@ -12,7 +13,6 @@ from langchain_community.embeddings import OllamaEmbeddings
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-import time
 
 # ============================================
 # CONFIGURACIÓN
@@ -28,9 +28,7 @@ MAX_HISTORY = 10
 # ============================================
 SYSTEM_PROMPT = """
 Eres AguweyBot PRO.
-
 Eres un asistente avanzado con doble especialización:
-
 1. Ingeniería y ciencias aplicadas.
 2. Escritura creativa, narrativa y desarrollo literario.
 
@@ -61,7 +59,6 @@ REGLAS GENERALES:
 - No menciones limitaciones innecesarias.
 - Mantén coherencia y calidad en ambos modos.
 - Si falta información, pide aclaración de forma profesional.
-
 Tu objetivo es ser un asistente cognitivo integral de alto nivel.
 
 DIRECTRICES DE ESTILO:
@@ -79,7 +76,7 @@ EJEMPLOS DE USO APROPIADO:
 ⚠️ Precaución:
 ✅ Verificación:
 
-IMPORTANTE: Tienes acceso al historial completo de la conversación. 
+IMPORTANTE: Tienes acceso al historial completo de la conversación.
 Úsalo para mantener coherencia con lo hablado anteriormente.
 Recuerda detalles que el usuario te haya compartido antes.
 """
@@ -88,111 +85,124 @@ Recuerda detalles que el usuario te haya compartido antes.
 # CALLBACK PARA STREAMING
 # ============================================
 class StreamlitCallbackHandler(BaseCallbackHandler):
+    """Callback para ir mostrando los tokens en tiempo real en Streamlit."""
+
     def __init__(self, container):
         super().__init__()
         self.container = container
         self.text = ""
-        
+
     def on_llm_new_token(self, token: str, **kwargs) -> None:
+        """Se ejecuta cada vez que llega un nuevo token del modelo."""
         self.text += token
         self.container.markdown(
             f'<div class="respuesta-aguwey streaming">{self.text}<span class="cursor">▌</span></div>',
-            unsafe_allow_html=True
+            unsafe_allow_html=True,
         )
+        # Ajusta este delay si quieres que la escritura sea más rápida o más lenta.
         time.sleep(0.005)
 
+
 # ============================================
-# FUNCIÓN PARA CARGAR CONOCIMIENTO.TXT
+# FUNCIÓN PARA CARGAR / CREAR VECTORSTORE (RAG)
 # ============================================
 @st.cache_resource(show_spinner=False)
 def crear_vectorstore():
+    """Crea o carga la base vectorial a partir de conocimiento.txt."""
     if not os.path.exists(KNOWLEDGE_FILE):
         st.warning(f"⚠️ No se encuentra el archivo {KNOWLEDGE_FILE}")
         return None
-    
+
     try:
+        # Si ya existe la carpeta de persistencia, solo cargamos
         if os.path.exists(PERSIST_DIRECTORY):
             embeddings = OllamaEmbeddings(model=EMBED_MODEL)
             vectorstore = Chroma(
                 persist_directory=PERSIST_DIRECTORY,
-                embedding_function=embeddings
+                embedding_function=embeddings,
             )
             return vectorstore
-        
-        with st.spinner(f"📚 Procesando {KNOWLEDGE_FILE} por primera vez..."):
-            embeddings = OllamaEmbeddings(model=EMBED_MODEL)
-            loader = TextLoader(KNOWLEDGE_FILE, encoding='utf-8')
-            documents = loader.load()
-            
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000,
-                chunk_overlap=200,
-                separators=["\n\n", "\n", ". ", " ", ""]
-            )
-            
-            chunks = text_splitter.split_documents(documents)
-            vectorstore = Chroma.from_documents(
-                documents=chunks,
-                embedding=embeddings,
-                persist_directory=PERSIST_DIRECTORY
-            )
-            vectorstore.persist()
-            st.success(f"✅ Archivo procesado: {len(chunks)} fragmentos")
-            return vectorstore
-        
+        else:
+            # Primera vez: procesar conocimiento.txt y crear la base de vectores
+            with st.spinner(f"📚 Procesando {KNOWLEDGE_FILE} por primera vez..."):
+                embeddings = OllamaEmbeddings(model=EMBED_MODEL)
+                loader = TextLoader(KNOWLEDGE_FILE, encoding="utf-8")
+                documents = loader.load()
+
+                text_splitter = RecursiveCharacterTextSplitter(
+                    chunk_size=1000,
+                    chunk_overlap=200,
+                    separators=["\n\n", "\n", ". ", " ", ""],
+                )
+                chunks = text_splitter.split_documents(documents)
+
+                vectorstore = Chroma.from_documents(
+                    documents=chunks,
+                    embedding=embeddings,
+                    persist_directory=PERSIST_DIRECTORY,
+                )
+                vectorstore.persist()
+                st.success(f"✅ Archivo procesado: {len(chunks)} fragmentos")
+                return vectorstore
+
     except Exception as e:
-        st.error(f"❌ Error: {str(e)}")
+        st.error(f"❌ Error al crear/cargar vectorstore: {str(e)}")
         return None
 
-# ============================================
-# CARGA DE MODELOS
-# ============================================
-@st.cache_resource
-def cargar_llm():
-    return ChatOllama(
-        model=MODEL_NAME,
-        temperature=0.0,
-        num_ctx=4096,
-        top_p=0.9,
-        repeat_penalty=1.1
-    )
 
+# ============================================
+# CARGA DE RETRIEVER (RAG)
+# ============================================
 @st.cache_resource
 def cargar_retriever():
+    """Devuelve un retriever basado en la base vectorial, o None si falla."""
     vectorstore = crear_vectorstore()
     if vectorstore is None:
         return None
     return vectorstore.as_retriever(search_kwargs={"k": 4})
 
+
 # ============================================
 # FUNCIÓN PARA CONSTRUIR MENSAJES CON HISTORIAL
 # ============================================
 def construir_mensajes_con_historial(pregunta, docs=None):
+    """
+    Construye la lista de mensajes para el modelo,
+    incluyendo system prompt, historial y contexto (RAG).
+    """
     mensajes = [SystemMessage(content=SYSTEM_PROMPT)]
-    
+
+    # Añadir historial reciente de la conversación
     for msg in st.session_state.messages[-MAX_HISTORY:]:
         if msg["role"] == "user":
             mensajes.append(HumanMessage(content=msg["content"]))
         elif msg["role"] == "assistant":
             mensajes.append(AIMessage(content=msg["content"]))
-    
+
+    # Añadir contexto de RAG si hay documentos
     if docs:
         contexto = "\n\n".join([doc.page_content for doc in docs])
-        mensajes.append(HumanMessage(content=f"Contexto:\n{contexto}\n\nPregunta actual: {pregunta}"))
+        mensajes.append(
+            HumanMessage(
+                content=f"Contexto:\n{contexto}\n\nPregunta actual: {pregunta}"
+            )
+        )
     else:
         mensajes.append(HumanMessage(content=pregunta))
-    
+
     return mensajes
+
 
 # ============================================
 # ESTILOS PROFESIONALES - CONTRASTE MEJORADO
 # ============================================
-def set_background(image_path):
+def set_background(image_path: str):
+    """Aplica fondo y tema visual personalizado si existe la imagen."""
     if os.path.exists(image_path):
         with open(image_path, "rb") as img:
             encoded = base64.b64encode(img.read()).decode()
-            
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <style>
         :root {{
             --primary: #00ffff;
@@ -267,23 +277,23 @@ def set_background(image_path):
             font-weight: 700;
             text-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
         }}
-        
+
         .respuesta-aguwey em {{
             color: var(--accent-bright);
             font-style: italic;
         }}
-        
+
         .respuesta-aguwey h1, .respuesta-aguwey h2, .respuesta-aguwey h3 {{
             color: var(--primary-bright) !important;
             margin-top: 1.2rem;
             margin-bottom: 0.8rem;
             font-weight: 700;
         }}
-        
+
         .respuesta-aguwey h1 {{ font-size: 1.8rem; }}
         .respuesta-aguwey h2 {{ font-size: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }}
         .respuesta-aguwey h3 {{ font-size: 1.3rem; }}
-        
+
         .respuesta-aguwey code {{
             background: #0d1420;
             padding: 0.2em 0.5em;
@@ -304,24 +314,24 @@ def set_background(image_path):
             font-size: 0.95rem;
             line-height: 1.6;
         }}
-        
+
         .respuesta-aguwey pre code {{
             background: none;
             border: none;
             padding: 0;
             color: var(--text-soft);
         }}
-        
+
         .respuesta-aguwey ul, .respuesta-aguwey ol {{
             margin: 1rem 0;
             padding-left: 2rem;
         }}
-        
+
         .respuesta-aguwey li {{
             margin: 0.5rem 0;
             color: var(--text-soft);
         }}
-        
+
         .respuesta-aguwey blockquote {{
             border-left: 4px solid var(--primary);
             background: rgba(0, 255, 255, 0.1);
@@ -331,24 +341,24 @@ def set_background(image_path):
             color: var(--text-soft);
             font-style: italic;
         }}
-        
+
         .respuesta-aguwey a {{
             color: var(--primary-bright);
             text-decoration: underline;
             text-decoration-color: var(--primary);
         }}
-        
+
         .respuesta-aguwey a:hover {{
             color: var(--accent-bright);
         }}
-        
+
         .respuesta-aguwey table {{
             border-collapse: collapse;
             width: 100%;
             margin: 1.2rem 0;
             color: var(--text-soft);
         }}
-        
+
         .respuesta-aguwey th {{
             background: var(--primary-dark);
             color: var(--bg-dark);
@@ -356,7 +366,7 @@ def set_background(image_path):
             padding: 0.8rem;
             border: 1px solid var(--border);
         }}
-        
+
         .respuesta-aguwey td {{
             padding: 0.6rem 0.8rem;
             border: 1px solid var(--border);
@@ -373,7 +383,7 @@ def set_background(image_path):
             color: var(--text-bright);
             font-size: 1.1rem;
         }}
-        
+
         .user-message strong {{
             color: var(--primary-bright);
         }}
@@ -385,12 +395,12 @@ def set_background(image_path):
             text-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
         }}
 
-        h1 {{ 
-            font-size: 2.6rem !important; 
-            letter-spacing: -0.5px; 
+        h1 {{
+            font-size: 2.6rem !important;
+            letter-spacing: -0.5px;
             margin-bottom: 0.4rem !important;
         }}
-        
+
         h2 {{
             font-size: 2rem !important;
             border-bottom: 2px solid var(--primary);
@@ -430,7 +440,7 @@ def set_background(image_path):
             border-width: 2px;
             box-shadow: 0 0 0 4px rgba(0, 255, 255, 0.25);
         }}
-        
+
         .stTextInput input::placeholder {{
             color: var(--text-muted);
             font-weight: 400;
@@ -466,7 +476,7 @@ def set_background(image_path):
             margin: 1rem 0;
             color: var(--text-bright);
         }}
-        
+
         .chat-message-bot {{
             background: linear-gradient(145deg, #1a212b, #131a22);
             border: 2px solid var(--accent);
@@ -490,7 +500,7 @@ def set_background(image_path):
             font-size: 1.1rem;
             padding: 0.5rem;
         }}
-        
+
         .stExpander .stMarkdown {{
             color: var(--text-soft);
         }}
@@ -535,27 +545,27 @@ def set_background(image_path):
             font-weight: 600;
         }}
 
-        .fixed-footer a:hover {{ 
+        .fixed-footer a:hover {{
             text-decoration: underline;
             color: var(--accent-bright);
         }}
 
         /* ===== SCROLLBAR ===== */
-        ::-webkit-scrollbar {{ 
-            width: 10px; 
+        ::-webkit-scrollbar {{
+            width: 10px;
             height: 10px;
         }}
-        
-        ::-webkit-scrollbar-track {{ 
-            background: var(--bg-dark); 
+
+        ::-webkit-scrollbar-track {{
+            background: var(--bg-dark);
         }}
-        
-        ::-webkit-scrollbar-thumb {{ 
+
+        ::-webkit-scrollbar-thumb {{
             background: linear-gradient(145deg, var(--primary-dark), var(--primary));
-            border-radius: 5px; 
+            border-radius: 5px;
         }}
-        
-        ::-webkit-scrollbar-thumb:hover {{ 
+
+        ::-webkit-scrollbar-thumb:hover {{
             background: linear-gradient(145deg, var(--primary), var(--primary-bright));
         }}
 
@@ -566,25 +576,25 @@ def set_background(image_path):
             border-radius: 10px;
             color: var(--text-soft);
         }}
-        
+
         .stInfo {{
             background-color: rgba(0, 255, 255, 0.15);
             border-left-color: var(--primary);
             color: var(--text-bright);
         }}
-        
+
         .stSuccess {{
             background-color: rgba(46, 160, 67, 0.15);
             border-left-color: var(--success);
             color: var(--text-bright);
         }}
-        
+
         .stWarning {{
             background-color: rgba(240, 136, 62, 0.15);
             border-left-color: var(--warning);
             color: var(--text-bright);
         }}
-        
+
         .stError {{
             background-color: rgba(248, 81, 73, 0.15);
             border-left-color: var(--danger);
@@ -596,27 +606,31 @@ def set_background(image_path):
             .main .block-container {{
                 padding: 1.5rem 1rem 6rem !important;
             }}
-            
+
             h1 {{
                 font-size: 2.2rem !important;
             }}
-            
+
             .respuesta-aguwey {{
                 padding: 1.2rem 1.5rem;
                 font-size: 1rem;
             }}
         }}
         </style>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
+
 
 # ============================================
 # STREAMING DE RESPUESTA
 # ============================================
 def mostrar_respuesta_streaming(mensajes):
+    """Gestiona el streaming de la respuesta del modelo en la interfaz."""
     try:
         response_container = st.empty()
         callback = StreamlitCallbackHandler(response_container)
-        
+
         llm_stream = ChatOllama(
             model=MODEL_NAME,
             temperature=0.0,
@@ -624,21 +638,23 @@ def mostrar_respuesta_streaming(mensajes):
             top_p=0.9,
             repeat_penalty=1.1,
             streaming=True,
-            callbacks=[callback]
+            callbacks=[callback],
         )
-        
+
         response = llm_stream.invoke(mensajes)
-        
+
+        # Mostrar respuesta final sin cursor
         response_container.markdown(
             f'<div class="respuesta-aguwey">{response.content}</div>',
-            unsafe_allow_html=True
+            unsafe_allow_html=True,
         )
-        
+
         return response.content
-        
+
     except Exception as e:
         st.error(f"❌ Error en streaming: {str(e)}")
         return None
+
 
 # ============================================
 # INTERFAZ PRINCIPAL
@@ -648,7 +664,7 @@ def main():
         page_title="AguweyBot PRO",
         page_icon="⚡",
         layout="wide",
-        initial_sidebar_state="expanded"
+        initial_sidebar_state="expanded",
     )
 
     set_background("fondo.png")
@@ -656,7 +672,6 @@ def main():
     # Inicializar session state
     if "messages" not in st.session_state:
         st.session_state.messages = []
-    
     if "first_interaction" not in st.session_state:
         st.session_state.first_interaction = True
 
@@ -671,7 +686,7 @@ def main():
             st.info("📌 Coloca 'logo.png' para personalizar")
 
         st.markdown("---")
-        
+
         # Información del conocimiento
         st.markdown("### 📚 Conocimiento Base")
         if os.path.exists(KNOWLEDGE_FILE):
@@ -681,53 +696,65 @@ def main():
             st.warning(f"⚠️ {KNOWLEDGE_FILE} no encontrado")
 
         st.markdown("---")
-        
+
         # Estadísticas
         st.markdown("### 💬 Conversación")
         st.markdown(f"**Mensajes:** {len(st.session_state.messages)}")
-        
+
         if len(st.session_state.messages) > 0:
             if st.button("🔄 Nueva Conversación"):
                 st.session_state.messages = []
                 st.session_state.first_interaction = True
                 st.rerun()
-        
+
         st.markdown("---")
         st.markdown("### 🎯 Capacidades")
-        st.markdown("""
-        - 📚 RAG con conocimiento.txt
-        - 🔬 Análisis Técnico
-        - ✍️ Escritura Creativa
-        - 💬 Memoria de Conversación
-        - ⚡ Streaming Avanzado
-        """)
-        
+        st.markdown(
+            """
+- 📚 RAG con conocimiento.txt  
+- 🔬 Análisis Técnico  
+- ✍️ Escritura Creativa  
+- 💬 Memoria de Conversación  
+- ⚡ Streaming Avanzado  
+"""
+        )
+
         st.markdown("---")
         st.markdown("### 📊 Estado del Sistema")
         st.success(f"✅ Modelo: {MODEL_NAME}")
         st.info(f"📁 Memoria: {len(st.session_state.messages)} mensajes")
         st.success("⚡ Streaming: Activado")
-        
+
         st.markdown("---")
         st.caption("CC-NC-SA: 2026 AguweyBot PRO")
 
     # Contenido principal
-    st.markdown('<h1 style="color: #00ffff; text-shadow: 0 0 20px rgba(0,255,255,0.5);">⚡ AguweyBot PRO</h1>', unsafe_allow_html=True)
+    st.markdown(
+        '<h1 style="color: #00ffff; text-shadow: 0 0 20px rgba(0,255,255,0.5);">⚡ AguweyBot PRO</h1>',
+        unsafe_allow_html=True,
+    )
     st.caption("Sistema cognitivo con memoria de conversación y recuperación semántica")
 
-    # Cargar modelos
+    # Cargar retriever (RAG)
     with st.spinner("🚀 Inicializando sistemas cognitivos..."):
-        llm = cargar_llm()
         retriever = cargar_retriever()
 
-    if llm is None:
-        st.error("❌ No se pudo cargar el modelo. Verifica Ollama.")
-        st.stop()
+    if retriever is None and os.path.exists(KNOWLEDGE_FILE):
+        st.warning(
+            "⚠️ No se pudo inicializar la base vectorial. Se responderá solo con el modelo base (sin RAG)."
+        )
 
     # Mostrar historial
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+            if message["role"] == "assistant":
+                # Aplicar estilo consistente a las respuestas del bot
+                st.markdown(
+                    f'<div class="respuesta-aguwey">{message["content"]}</div>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(message["content"])
 
     # Entrada del usuario
     prompt = st.chat_input("Escribe tu consulta...")
@@ -736,43 +763,52 @@ def main():
         # Mostrar mensaje del usuario
         with st.chat_message("user"):
             st.markdown(prompt)
-        
+
         # Guardar en historial
         st.session_state.messages.append({"role": "user", "content": prompt})
-        
-        # Buscar documentos
+
+        # Buscar documentos con RAG (si disponible)
         with st.spinner("🧠 Pensando..."):
             docs = retriever.invoke(prompt) if retriever else []
-        
-        # Construir mensajes
+
+        # Construir mensajes para el modelo
         mensajes = construir_mensajes_con_historial(prompt, docs if docs else None)
-        
-        # Generar respuesta
+
+        # Generar respuesta con streaming
         with st.chat_message("assistant"):
             respuesta = mostrar_respuesta_streaming(mensajes)
-        
-        # Guardar respuesta
+
+        # Guardar respuesta en historial
         if respuesta:
-            st.session_state.messages.append({"role": "assistant", "content": respuesta})
-        
-        # Mostrar fuentes
+            st.session_state.messages.append(
+                {"role": "assistant", "content": respuesta}
+            )
+
+        # Mostrar fuentes consultadas (si hubo RAG)
         if docs:
             with st.expander("📚 Fuentes consultadas"):
                 for i, doc in enumerate(docs, 1):
                     st.markdown(f"**Fuente {i}:**")
                     st.caption(doc.page_content[:200] + "...")
 
-    # Mensaje de bienvenida
+    # Mensaje de bienvenida inicial
     elif st.session_state.first_interaction:
-        st.info("👋 **¡Bienvenido!** Puedes hacerme preguntas técnicas o literarias. Recuerdo toda la conversación, así que podemos profundizar en temas complejos.")
+        st.info(
+            "👋 **¡Bienvenido!** Puedes hacerme preguntas técnicas o literarias. "
+            "Recuerdo toda la conversación, así que podemos profundizar en temas complejos."
+        )
         st.session_state.first_interaction = False
 
     # Footer
-    st.markdown("""
+    st.markdown(
+        """
     <div class="fixed-footer">
         <strong>⚡ Licencia CC-NC-SA</strong> • Prof. Raymond Rosa Ávila • AguweyBot PRO 2026
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
+
 
 if __name__ == "__main__":
     main()
