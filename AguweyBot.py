@@ -131,10 +131,15 @@ def crear_vectorstore():
             return vectorstore
         else:
             # Primera vez: procesar conocimiento.txt y crear la base de vectores
-            with st.spinner(f"📚 Procesando {KNOWLEDGE_FILE} por primera vez..."):
+            progress_bar = st.progress(0, text="📚 Iniciando procesamiento de conocimiento.txt...")
+            
+            with st.spinner("📚 Procesando conocimiento.txt por primera vez..."):
                 embeddings = OllamaEmbeddings(model=EMBED_MODEL)
+                progress_bar.progress(20, text="📚 Cargando archivo...")
+                
                 loader = TextLoader(KNOWLEDGE_FILE, encoding="utf-8")
                 documents = loader.load()
+                progress_bar.progress(40, text="📚 Dividiendo en fragmentos...")
 
                 text_splitter = RecursiveCharacterTextSplitter(
                     chunk_size=1000,
@@ -142,13 +147,20 @@ def crear_vectorstore():
                     separators=["\n\n", "\n", ". ", " ", ""],
                 )
                 chunks = text_splitter.split_documents(documents)
+                progress_bar.progress(60, text=f"📚 Generando {len(chunks)} fragmentos...")
 
                 vectorstore = Chroma.from_documents(
                     documents=chunks,
                     embedding=embeddings,
                     persist_directory=PERSIST_DIRECTORY,
                 )
+                progress_bar.progress(80, text="📚 Guardando en base de datos...")
+                
                 vectorstore.persist()
+                progress_bar.progress(100, text="✅ Procesamiento completado!")
+                time.sleep(0.5)
+                progress_bar.empty()
+                
                 st.success(f"✅ Archivo procesado: {len(chunks)} fragmentos")
                 return vectorstore
     except Exception as e:
@@ -714,17 +726,27 @@ def extraer_texto_de_archivo(uploaded_file):
 # ============================================
 def crear_vectorstore_desde_texto(texto):
     try:
+        progress_bar = st.progress(0, text="📄 Preparando documento...")
+        
         embeddings = OllamaEmbeddings(model=EMBED_MODEL)
+        progress_bar.progress(30, text="📄 Dividiendo documento en fragmentos...")
+        
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000,
             chunk_overlap=200,
             separators=["\n\n", "\n", ". ", " ", ""],
         )
         docs = text_splitter.create_documents([texto])
+        progress_bar.progress(60, text=f"📄 Generando {len(docs)} fragmentos...")
+        
         vectorstore = Chroma.from_documents(
             documents=docs,
             embedding=embeddings
         )
+        progress_bar.progress(100, text="✅ Documento indexado correctamente!")
+        time.sleep(0.5)
+        progress_bar.empty()
+        
         return vectorstore
     except Exception as e:
         st.error(f"❌ Error al crear vectorstore temporal: {str(e)}")
@@ -808,14 +830,22 @@ def main():
             )
 
             if st.button("🔍 Procesar documento"):
+                progress_bar = st.progress(0, text="📄 Iniciando extracción de texto...")
+                
                 texto_doc = extraer_texto_de_archivo(uploaded_file)
+                progress_bar.progress(50, text="📄 Texto extraído, indexando...")
+                
                 if texto_doc and len(texto_doc.strip()) > 0:
                     vectorstore_doc = crear_vectorstore_desde_texto(texto_doc)
                     if vectorstore_doc:
                         st.session_state.doc_vectorstore = vectorstore_doc
                         st.session_state.doc_nombre = uploaded_file.name
+                        progress_bar.progress(100, text="✅ Documento listo para consultas!")
+                        time.sleep(0.5)
+                        progress_bar.empty()
                         st.success("✅ Documento indexado para análisis.")
                 else:
+                    progress_bar.empty()
                     st.warning("⚠️ No se obtuvo texto útil del archivo.")
         else:
             st.session_state.usar_doc_en_analisis = False
