@@ -1,4 +1,4 @@
-Licencia: Código de registro: 2603044757725; CC-NC-SA; Prof. Raymond Rosa Ávila
+Licencia: Código de registro: 2603064782073; CC-NC-SA; Prof. Raymond Rosa Ávila
 
 📘 README.md — AguweyBot PRO
 Asistente Inteligente con RAG, análisis de documentos y OCR integrado
