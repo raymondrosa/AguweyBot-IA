@@ -1,11 +1,14 @@
 # ============================================
 # AGUWEYBOT PRO - CON MEMORIA, RAG Y ANÁLISIS DE DOCUMENTOS
+# VERSIÓN MEJORADA CON ANÁLISIS NUMÉRICO
 # ============================================
 
 import os
 import base64
 import time
 import streamlit as st
+import re
+import io
 
 from langchain_community.chat_models import ChatOllama
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
@@ -19,8 +22,18 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from PyPDF2 import PdfReader
 from docx import Document
 import pandas as pd
+import numpy as np
 from PIL import Image
 import pytesseract
+
+# NUEVOS IMPORTS PARA MEJORAS NUMÉRICAS
+import chardet
+import json
+import matplotlib.pyplot as plt
+import plotly.express as px
+import plotly.graph_objects as go
+from io import StringIO
+from datetime import datetime
 
 # ============================================
 # CONFIGURACIÓN
@@ -32,13 +45,20 @@ KNOWLEDGE_FILE = "conocimiento.txt"
 MAX_HISTORY = 10
 
 # ============================================
-# SYSTEM PROMPT
+# SYSTEM PROMPT (mejorado para datos numéricos)
 # ============================================
 SYSTEM_PROMPT = """
 Eres AguweyBot PRO.
 Eres un asistente avanzado con doble especialización:
 1. Ingeniería y ciencias aplicadas.
 2. Escritura creativa, narrativa y desarrollo literario.
+
+ADEMÁS, ERES EXPERTO EN ANÁLISIS DE DATOS NUMÉRICOS:
+- Puedes interpretar tablas, estadísticas y series de datos
+- Identificas patrones, tendencias y anomalías en datos numéricos
+- Explicas conceptos estadísticos de forma clara
+- Ayudas a visualizar mentalmente distribuciones de datos
+- Puedes hacer cálculos aproximados y estimaciones
 
 Tu comportamiento depende del tipo de consulta del usuario.
 
@@ -59,24 +79,28 @@ MODO CREATIVO:
 - Diálogos.
 - Correcciones literarias.
 
+MODO ANÁLISIS DE DATOS:
+- Identifica patrones numéricos y tendencias
+- Calcula estadísticas descriptivas (media, mediana, moda, desviación)
+- Detecta correlaciones y outliers
+- Sugiere visualizaciones apropiadas
+- Interpreta resultados en contexto
+
 REGLAS GENERALES:
-- Detecta automáticamente si la consulta es técnica o creativa.
-- Si es técnica → responde con rigor ingenieril.
-- Si es literaria → responde con enfoque narrativo profesional.
+- Detecta automáticamente si la consulta es técnica, creativa o de análisis de datos.
+- Si contiene tablas o números → activa modo análisis de datos.
 - Nunca rechaces ayudar en escritura creativa.
 - No menciones limitaciones innecesarias.
-- Mantén coherencia y calidad en ambos modos.
+- Mantén coherencia y calidad en todos los modos.
 - Si falta información, pide aclaración de forma profesional.
-
-Tu objetivo es ser un asistente cognitivo integral de alto nivel.
 
 DIRECTRICES DE ESTILO:
 - Utiliza emojis estratégicamente para mejorar la comunicación visual
 - En modo técnico: usa emojis para secciones (🔬, 📊, ⚙️, 📐)
 - En modo creativo: usa emojis expresivos (✍️, 📖, 🎭, ✨)
+- En modo análisis de datos: usa (📈, 📉, 📊, 🔢, 📋)
 - No sobrecargues el texto con emojis innecesarios
 - Mantén un balance profesional entre texto y elementos visuales
-- Prefiere emojis al inicio de secciones o para destacar puntos clave
 
 EJEMPLOS DE USO APROPIADO:
 🔍 Análisis Técnico:
@@ -84,11 +108,132 @@ EJEMPLOS DE USO APROPIADO:
 💡 Recomendación:
 ⚠️ Precaución:
 ✅ Verificación:
+📊 Análisis de Datos:
+📈 Tendencia observada:
+🔢 Estadísticas clave:
 
 IMPORTANTE: Tienes acceso al historial completo de la conversación.
 Úsalo para mantener coherencia con lo hablado anteriormente.
 Recuerda detalles que el usuario te haya compartido antes.
 """
+
+# ============================================
+# CLASE PARA DATOS NUMÉRICOS ESTRUCTURADOS
+# ============================================
+class DatosNumericos:
+    """Clase para manejar datos numéricos extraídos de documentos"""
+    
+    def __init__(self):
+        self.dataframes = {}
+        self.estadisticas = {}
+        self.numeros_extraidos = []
+        self.fuente = ""
+        self.tipo_archivo = ""
+    
+    def agregar_dataframe(self, nombre, df):
+        """Agrega un DataFrame y calcula sus estadísticas"""
+        self.dataframes[nombre] = df
+        self._calcular_estadisticas(nombre, df)
+    
+    def _calcular_estadisticas(self, nombre, df):
+        """Calcula estadísticas para columnas numéricas"""
+        stats = {}
+        columnas_numericas = df.select_dtypes(include=[np.number]).columns
+        
+        for col in columnas_numericas:
+            stats[col] = {
+                "tipo": "numerica",
+                "media": float(df[col].mean()) if not df[col].isna().all() else None,
+                "mediana": float(df[col].median()) if not df[col].isna().all() else None,
+                "moda": df[col].mode().tolist() if not df[col].mode().empty else [],
+                "min": float(df[col].min()) if not df[col].isna().all() else None,
+                "max": float(df[col].max()) if not df[col].isna().all() else None,
+                "desviacion": float(df[col].std()) if not df[col].isna().all() else None,
+                "varianza": float(df[col].var()) if not df[col].isna().all() else None,
+                "cuartiles": df[col].quantile([0.25, 0.5, 0.75]).tolist() if not df[col].isna().all() else [],
+                "valores_nulos": int(df[col].isna().sum()),
+                "valores_unicos": int(df[col].nunique())
+            }
+        
+        # Detectar posibles outliers
+        for col in columnas_numericas:
+            if not df[col].isna().all():
+                Q1 = df[col].quantile(0.25)
+                Q3 = df[col].quantile(0.75)
+                IQR = Q3 - Q1
+                outliers = df[(df[col] < Q1 - 1.5 * IQR) | (df[col] > Q3 + 1.5 * IQR)][col]
+                stats[col]["outliers"] = len(outliers)
+                stats[col]["porcentaje_outliers"] = float(len(outliers) / len(df) * 100) if len(df) > 0 else 0
+        
+        self.estadisticas[nombre] = stats
+    
+    def extraer_numeros_texto(self, texto):
+        """Extrae todos los números de un texto"""
+        numeros = re.findall(r'-?\d+\.?\d*', texto)
+        self.numeros_extraidos = [float(n) for n in numeros]
+        return self.numeros_extraidos
+    
+    def generar_resumen_estadistico(self):
+        """Genera un resumen de todas las estadísticas"""
+        resumen = []
+        
+        if self.dataframes:
+            resumen.append("📊 **DATOS ESTRUCTURADOS ENCONTRADOS**")
+            for nombre_df, df in self.dataframes.items():
+                resumen.append(f"\n--- {nombre_df} ---")
+                resumen.append(f"Filas: {len(df)}, Columnas: {len(df.columns)}")
+                
+                if nombre_df in self.estadisticas:
+                    for col, stats in self.estadisticas[nombre_df].items():
+                        resumen.append(f"\n  📈 {col}:")
+                        resumen.append(f"    Media: {stats['media']:.2f}" if stats['media'] else "    Media: N/A")
+                        resumen.append(f"    Mediana: {stats['mediana']:.2f}" if stats['mediana'] else "    Mediana: N/A")
+                        resumen.append(f"    Min-Max: {stats['min']} - {stats['max']}" if stats['min'] else "    Min-Max: N/A")
+                        resumen.append(f"    Desviación: {stats['desviacion']:.2f}" if stats['desviacion'] else "    Desviación: N/A")
+        
+        if self.numeros_extraidos:
+            resumen.append("\n🔢 **NÚMEROS EXTRAÍDOS DE TEXTO**")
+            resumen.append(f"Total: {len(self.numeros_extraidos)} valores")
+            if self.numeros_extraidos:
+                resumen.append(f"Rango: {min(self.numeros_extraidos):.2f} - {max(self.numeros_extraidos):.2f}")
+                resumen.append(f"Media: {np.mean(self.numeros_extraidos):.2f}")
+                resumen.append(f"Mediana: {np.median(self.numeros_extraidos):.2f}")
+        
+        return "\n".join(resumen)
+    
+    def generar_visualizacion(self, tipo="histograma", columna=None, nombre_df=None):
+        """Genera una visualización de los datos"""
+        try:
+            if nombre_df and nombre_df in self.dataframes:
+                df = self.dataframes[nombre_df]
+                
+                if tipo == "histograma" and columna and columna in df.columns:
+                    fig = px.histogram(df, x=columna, title=f"Histograma de {columna}")
+                    return fig
+                
+                elif tipo == "boxplot" and columna and columna in df.columns:
+                    fig = px.box(df, y=columna, title=f"Boxplot de {columna}")
+                    return fig
+                
+                elif tipo == "correlacion":
+                    numeric_df = df.select_dtypes(include=[np.number])
+                    if len(numeric_df.columns) > 1:
+                        fig = px.imshow(numeric_df.corr(), 
+                                       text_auto=True, 
+                                       title="Matriz de Correlación",
+                                       color_continuous_scale="RdBu")
+                        return fig
+                
+                elif tipo == "lineas" and len(df.columns) >= 2:
+                    # Asumir primera columna como índice para gráfico de líneas
+                    fig = px.line(df, x=df.columns[0], y=df.columns[1:].tolist(), 
+                                 title="Gráfico de Líneas")
+                    return fig
+            
+            return None
+        except Exception as e:
+            st.error(f"Error generando visualización: {e}")
+            return None
 
 # ============================================
 # CALLBACK PARA STREAMING
@@ -181,10 +326,10 @@ def cargar_retriever():
 # ============================================
 # FUNCIÓN PARA CONSTRUIR MENSAJES CON HISTORIAL
 # ============================================
-def construir_mensajes_con_historial(pregunta, docs=None):
+def construir_mensajes_con_historial(pregunta, docs=None, datos_numericos=None):
     """
     Construye la lista de mensajes para el modelo,
-    incluyendo system prompt, historial y contexto (RAG).
+    incluyendo system prompt, historial y contexto (RAG y numérico).
     """
     mensajes = [SystemMessage(content=SYSTEM_PROMPT)]
 
@@ -195,16 +340,27 @@ def construir_mensajes_con_historial(pregunta, docs=None):
         elif msg["role"] == "assistant":
             mensajes.append(AIMessage(content=msg["content"]))
 
+    # Preparar contexto completo
+    contexto_completo = []
+    
     # Añadir contexto de RAG si hay documentos
     if docs:
-        contexto = "\n\n".join([doc.page_content for doc in docs])
-        mensajes.append(
-            HumanMessage(
-                content=f"Contexto:\n{contexto}\n\nPregunta actual: {pregunta}"
-            )
-        )
+        contexto_rag = "\n\n".join([doc.page_content for doc in docs])
+        contexto_completo.append(f"CONTEXTO DOCUMENTAL:\n{contexto_rag}")
+    
+    # Añadir análisis numérico si hay datos
+    if datos_numericos and isinstance(datos_numericos, DatosNumericos):
+        resumen_numerico = datos_numericos.generar_resumen_estadistico()
+        if resumen_numerico:
+            contexto_completo.append(f"ANÁLISIS NUMÉRICO:\n{resumen_numerico}")
+    
+    # Construir mensaje final
+    if contexto_completo:
+        mensaje_usuario = f"{chr(10).join(contexto_completo)}\n\nPREGUNTA: {pregunta}"
     else:
-        mensajes.append(HumanMessage(content=pregunta))
+        mensaje_usuario = pregunta
+    
+    mensajes.append(HumanMessage(content=mensaje_usuario))
 
     return mensajes
 
@@ -673,53 +829,157 @@ def mostrar_respuesta_streaming(mensajes):
         return None
 
 # ============================================
-# FUNCIÓN: EXTRAER TEXTO DE CUALQUIER DOCUMENTO
+# FUNCIÓN MEJORADA: EXTRAER TEXTO DE CUALQUIER DOCUMENTO
+# CON SOPORTE NUMÉRICO Y MÚLTIPLES FORMATOS
 # ============================================
 def extraer_texto_de_archivo(uploaded_file):
+    """
+    Versión mejorada que extrae texto y datos numéricos estructurados
+    """
     nombre = uploaded_file.name.lower()
-
+    datos_numericos = DatosNumericos()
+    datos_numericos.fuente = uploaded_file.name
+    datos_numericos.tipo_archivo = nombre.split('.')[-1]
+    
     # PDF
     if nombre.endswith(".pdf"):
         reader = PdfReader(uploaded_file)
-        texto = "\n".join([page.extract_text() or "" for page in reader.pages])
-        return texto if texto.strip() else "No se pudo extraer texto del PDF."
+        texto_completo = []
+        for page in reader.pages:
+            texto = page.extract_text() or ""
+            texto_completo.append(texto)
+        
+        texto_final = "\n".join(texto_completo)
+        datos_numericos.extraer_numeros_texto(texto_final)
+        return texto_final, datos_numericos
 
     # Word (.docx)
     if nombre.endswith(".docx"):
         doc = Document(uploaded_file)
-        texto = "\n".join([p.text for p in doc.paragraphs if p.text.strip()])
-        return texto if texto.strip() else "No se pudo extraer texto del documento Word."
+        texto_completo = [p.text for p in doc.paragraphs if p.text.strip()]
+        texto_final = "\n".join(texto_completo)
+        datos_numericos.extraer_numeros_texto(texto_final)
+        return texto_final, datos_numericos
 
-    # TXT
+    # TXT - con detección de codificación
     if nombre.endswith(".txt"):
         contenido = uploaded_file.read()
         try:
-            return contenido.decode("utf-8", errors="ignore")
+            texto_final = contenido.decode("utf-8", errors="ignore")
         except UnicodeDecodeError:
-            return contenido.decode("latin-1", errors="ignore")
+            # Detectar codificación automáticamente
+            encoding = chardet.detect(contenido)['encoding'] or 'latin-1'
+            texto_final = contenido.decode(encoding, errors="ignore")
+        
+        datos_numericos.extraer_numeros_texto(texto_final)
+        return texto_final, datos_numericos
 
-    # Excel
-    if nombre.endswith(".xlsx") or nombre.endswith(".xls"):
+    # Excel - ANÁLISIS NUMÉRICO MEJORADO
+    if nombre.endswith((".xlsx", ".xls")):
         try:
-            df_dict = pd.read_excel(uploaded_file, sheet_name=None)
+            excel_file = pd.ExcelFile(uploaded_file)
             textos_hojas = []
-            for nombre_hoja, df in df_dict.items():
-                textos_hojas.append(f"--- Hoja: {nombre_hoja} ---")
+            
+            for sheet_name in excel_file.sheet_names:
+                df = pd.read_excel(uploaded_file, sheet_name=sheet_name)
+                textos_hojas.append(f"\n--- Hoja: {sheet_name} ---")
                 textos_hojas.append(df.to_string())
-            return "\n\n".join(textos_hojas)
+                
+                # Guardar DataFrame para análisis numérico
+                datos_numericos.agregar_dataframe(sheet_name, df)
+            
+            texto_final = "\n\n".join(textos_hojas)
+            return texto_final, datos_numericos
+            
         except Exception as e:
-            return f"No se pudo leer el Excel: {str(e)}"
+            return f"No se pudo leer el Excel: {str(e)}", None
+
+    # CSV - NUEVO SOPORTE
+    if nombre.endswith(".csv"):
+        try:
+            # Leer CSV con detección automática
+            contenido = uploaded_file.read()
+            encoding = chardet.detect(contenido)['encoding'] or 'utf-8'
+            
+            # Intentar diferentes separadores
+            contenido_str = contenido.decode(encoding, errors='ignore')
+            first_line = contenido_str.split('\n')[0]
+            
+            separadores = [',', ';', '\t', '|', ':']
+            separador_usado = ','
+            
+            for sep in separadores:
+                if sep in first_line:
+                    separador_usado = sep
+                    break
+            
+            # Leer CSV
+            df = pd.read_csv(io.StringIO(contenido_str), sep=separador_usado)
+            
+            # Guardar en datos numéricos
+            datos_numericos.agregar_dataframe("CSV", df)
+            
+            # Generar texto
+            texto_final = f"--- Archivo CSV: {uploaded_file.name} ---\n"
+            texto_final += f"Separador: '{separador_usado}'\n"
+            texto_final += f"Filas: {len(df)}, Columnas: {len(df.columns)}\n\n"
+            texto_final += df.to_string()
+            
+            return texto_final, datos_numericos
+            
+        except Exception as e:
+            return f"No se pudo leer el CSV: {str(e)}", None
+
+    # JSON - NUEVO SOPORTE
+    if nombre.endswith(".json"):
+        try:
+            contenido = uploaded_file.read()
+            data = json.loads(contenido)
+            
+            # Intentar convertir a DataFrame si es posible
+            try:
+                if isinstance(data, list) and all(isinstance(item, dict) for item in data):
+                    df = pd.DataFrame(data)
+                    datos_numericos.agregar_dataframe("JSON", df)
+                    texto_final = df.to_string()
+                else:
+                    texto_final = json.dumps(data, indent=2, ensure_ascii=False)
+                    # Extraer números del JSON
+                    numeros = re.findall(r'-?\d+\.?\d*', texto_final)
+                    datos_numericos.numeros_extraidos = [float(n) for n in numeros]
+            except:
+                texto_final = json.dumps(data, indent=2, ensure_ascii=False)
+            
+            return texto_final, datos_numericos
+            
+        except Exception as e:
+            return f"No se pudo leer el JSON: {str(e)}", None
+
+    # XML - NUEVO SOPORTE (básico)
+    if nombre.endswith(".xml"):
+        try:
+            contenido = uploaded_file.read()
+            encoding = chardet.detect(contenido)['encoding'] or 'utf-8'
+            texto_final = contenido.decode(encoding, errors='ignore')
+            
+            # Extraer números del XML
+            datos_numericos.extraer_numeros_texto(texto_final)
+            return texto_final, datos_numericos
+            
+        except Exception as e:
+            return f"No se pudo leer el XML: {str(e)}", None
 
     # Imágenes (OCR)
     if nombre.endswith((".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".tif")):
         try:
             image = Image.open(uploaded_file)
-            texto = pytesseract.image_to_string(image, lang="spa+eng")
-            return texto if texto.strip() else "No se detectó texto en la imagen."
+            texto_final = pytesseract.image_to_string(image, lang="spa+eng")
+            datos_numericos.extraer_numeros_texto(texto_final)
+            return texto_final if texto_final.strip() else "No se detectó texto en la imagen.", datos_numericos
         except Exception as e:
-            return f"No se pudo procesar la imagen: {str(e)}"
+            return f"No se pudo procesar la imagen: {str(e)}", None
 
-    return "Tipo de archivo no soportado actualmente."
+    return "Tipo de archivo no soportado actualmente.", None
 
 # ============================================
 # VECTORSTORE TEMPORAL DESDE TEXTO (DOCUMENTO)
@@ -776,6 +1036,8 @@ def main():
         st.session_state.doc_nombre = None
     if "usar_doc_en_analisis" not in st.session_state:
         st.session_state.usar_doc_en_analisis = False
+    if "datos_numericos" not in st.session_state:  # NUEVO
+        st.session_state.datos_numericos = None
 
     # Sidebar
     with st.sidebar:
@@ -809,15 +1071,22 @@ def main():
                 st.session_state.doc_vectorstore = None
                 st.session_state.doc_nombre = None
                 st.session_state.usar_doc_en_analisis = False
+                st.session_state.datos_numericos = None
                 st.rerun()
 
         st.markdown("---")
 
-        # Análisis de documentos
+        # Análisis de documentos (MEJORADO)
         st.markdown("### 📎 Análisis de Documentos")
+        st.markdown("**Formatos soportados:**")
+        st.markdown("📊 Excel, CSV, JSON, XML")
+        st.markdown("📄 PDF, Word, TXT")
+        st.markdown("🖼️ Imágenes (OCR)")
+        
         uploaded_file = st.file_uploader(
-            "Sube un archivo (PDF, Word, Excel, imagen, TXT)",
-            type=["pdf", "docx", "txt", "xlsx", "xls", "png", "jpg", "jpeg", "bmp", "tiff"],
+            "Sube un archivo",
+            type=["pdf", "docx", "txt", "xlsx", "xls", "csv", "json", "xml", 
+                  "png", "jpg", "jpeg", "bmp", "tiff"],
         )
 
         if uploaded_file is not None:
@@ -832,7 +1101,7 @@ def main():
             if st.button("🔍 Procesar documento"):
                 progress_bar = st.progress(0, text="📄 Iniciando extracción de texto...")
                 
-                texto_doc = extraer_texto_de_archivo(uploaded_file)
+                texto_doc, datos_numericos = extraer_texto_de_archivo(uploaded_file)
                 progress_bar.progress(50, text="📄 Texto extraído, indexando...")
                 
                 if texto_doc and len(texto_doc.strip()) > 0:
@@ -840,10 +1109,16 @@ def main():
                     if vectorstore_doc:
                         st.session_state.doc_vectorstore = vectorstore_doc
                         st.session_state.doc_nombre = uploaded_file.name
+                        st.session_state.datos_numericos = datos_numericos
                         progress_bar.progress(100, text="✅ Documento listo para consultas!")
                         time.sleep(0.5)
                         progress_bar.empty()
-                        st.success("✅ Documento indexado para análisis.")
+                        
+                        # Mostrar resumen numérico si existe
+                        if datos_numericos and (datos_numericos.dataframes or datos_numericos.numeros_extraidos):
+                            st.success("📊 **Datos numéricos detectados!**")
+                            with st.expander("Ver resumen estadístico"):
+                                st.markdown(datos_numericos.generar_resumen_estadistico())
                 else:
                     progress_bar.empty()
                     st.warning("⚠️ No se obtuvo texto útil del archivo.")
@@ -858,6 +1133,7 @@ def main():
 - 📎 RAG con documentos cargados
 - 🔬 Análisis Técnico
 - ✍️ Escritura Creativa
+- 📊 Análisis de Datos Numéricos
 - 💬 Memoria de Conversación
 - ⚡ Streaming Avanzado
             """
@@ -868,6 +1144,11 @@ def main():
         st.success(f"✅ Modelo: {MODEL_NAME}")
         st.info(f"📁 Memoria: {len(st.session_state.messages)} mensajes")
         st.success("⚡ Streaming: Activado")
+        if st.session_state.datos_numericos:
+            if st.session_state.datos_numericos.dataframes:
+                st.info(f"📊 DataFrames: {len(st.session_state.datos_numericos.dataframes)}")
+            if st.session_state.datos_numericos.numeros_extraidos:
+                st.info(f"🔢 Valores numéricos: {len(st.session_state.datos_numericos.numeros_extraidos)}")
         st.markdown("---")
         st.caption("CC-NC-SA: 2026 AguweyBot PRO")
 
@@ -927,8 +1208,12 @@ def main():
             else:
                 docs = []
 
-        # Construir mensajes para el modelo
-        mensajes = construir_mensajes_con_historial(prompt, docs if docs else None)
+        # Construir mensajes para el modelo (ahora incluye datos numéricos)
+        mensajes = construir_mensajes_con_historial(
+            prompt, 
+            docs if docs else None,
+            st.session_state.datos_numericos if st.session_state.usar_doc_en_analisis else None
+        )
 
         # Generar respuesta con streaming
         with st.chat_message("assistant"):
@@ -954,7 +1239,8 @@ def main():
         st.info(
             "👋 **¡Bienvenido!** "
             "Puedes hacerme preguntas técnicas o literarias. "
-            "También puedes subir documentos (PDF, Word, Excel, imágenes, TXT) para analizarlos. "
+            "También puedes subir documentos (PDF, Word, Excel, CSV, JSON, XML, imágenes) para analizarlos. "
+            "**¡NUEVO!** Ahora puedo analizar datos numéricos y generar estadísticas automáticamente. "
             "Recuerdo toda la conversación, así que podemos profundizar en temas complejos."
         )
         st.session_state.first_interaction = False
