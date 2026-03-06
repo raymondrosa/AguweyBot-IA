@@ -164,7 +164,7 @@ def cargar_retriever():
     vectorstore = crear_vectorstore()
     if vectorstore is None:
         return None
-    return vectorstore.as_retriever(search_kwargs={"k": 4})
+    return vectorstore.as_retriever(search_kwargs={"k": 20})
 
 # ============================================
 # FUNCIÓN PARA CONSTRUIR MENSAJES CON HISTORIAL
@@ -642,7 +642,7 @@ def mostrar_respuesta_streaming(mensajes):
             temperature=0.0,
             num_ctx=4096,
             top_p=0.9,
-            repeat_penalty=1.1,
+            repeat_penalty=1.3,
             streaming=True,
             callbacks=[callback],
         )
@@ -938,6 +938,182 @@ def main():
         """,
         unsafe_allow_html=True,
     )
+# ============================================
+# MODULOS AVANZADOS DE ANALISIS DE DOCUMENTOS
+# ============================================
 
+def analizar_documento_completo(vectorstore, pregunta):
+
+    try:
+        docs = vectorstore.similarity_search(pregunta, k=25)
+
+        texto = "\n\n".join([d.page_content for d in docs])
+
+        prompt = f"""
+Analiza el documento completo.
+
+PREGUNTA:
+{pregunta}
+
+DOCUMENTO:
+{texto}
+"""
+
+        return prompt
+
+    except Exception as e:
+        return f"Error en análisis completo: {e}"
+
+
+def resumir_documento(vectorstore):
+
+    try:
+
+        docs = vectorstore.similarity_search("", k=30)
+
+        texto = "\n\n".join([d.page_content for d in docs])
+
+        prompt = f"""
+Resume el documento:
+
+1 Tema principal
+2 Ideas clave
+3 Resultados importantes
+4 Conclusiones
+
+DOCUMENTO:
+{texto}
+"""
+
+        return prompt
+
+    except Exception as e:
+        return f"Error al resumir: {e}"
+
+
+def extraer_conocimiento(vectorstore):
+
+    try:
+
+        docs = vectorstore.similarity_search("", k=30)
+
+        texto = "\n\n".join([d.page_content for d in docs])
+
+        prompt = f"""
+Extrae del documento:
+
+- conceptos clave
+- definiciones
+- ecuaciones
+- descubrimientos
+- aplicaciones
+
+DOCUMENTO:
+{texto}
+"""
+
+        return prompt
+
+    except Exception as e:
+        return f"Error extrayendo conocimiento: {e}"
+# ============================================
+# HIERARCHICAL RAG PARA DOCUMENTOS MUY LARGOS
+# ============================================
+
+def generar_resumenes_por_fragmento(vectorstore):
+
+    """
+    Crea mini-resúmenes de cada fragmento del documento.
+    Ideal para libros o papers largos.
+    """
+
+    try:
+
+        docs = vectorstore.similarity_search("", k=50)
+
+        resumenes = []
+
+        for i, doc in enumerate(docs):
+
+            fragmento = doc.page_content
+
+            prompt = f"""
+Resume el siguiente fragmento del documento en 3-5 líneas.
+
+FRAGMENTO:
+{fragmento}
+"""
+
+            resumenes.append(prompt)
+
+        return resumenes
+
+    except Exception as e:
+
+        return f"Error generando resúmenes: {e}"
+
+
+def generar_meta_resumen(vectorstore):
+
+    """
+    Genera un resumen global del documento completo
+    usando la técnica hierarchical RAG.
+    """
+
+    try:
+
+        docs = vectorstore.similarity_search("", k=40)
+
+        texto = "\n\n".join([d.page_content for d in docs])
+
+        prompt = f"""
+A partir del siguiente contenido genera un resumen profundo del documento.
+
+Incluye:
+
+- tema central
+- estructura del documento
+- argumentos principales
+- conclusiones
+
+DOCUMENTO:
+{texto}
+"""
+
+        return prompt
+
+    except Exception as e:
+
+        return f"Error generando meta resumen: {e}"
+
+
+def responder_con_contexto_amplio(vectorstore, pregunta):
+
+    """
+    Usa muchos fragmentos para responder preguntas
+    complejas sobre documentos largos.
+    """
+
+    try:
+
+        docs = vectorstore.similarity_search(pregunta, k=30)
+
+        contexto = "\n\n".join([d.page_content for d in docs])
+
+        prompt = f"""
+Usa el siguiente contexto para responder la pregunta.
+
+CONTEXTO:
+{contexto}
+
+PREGUNTA:
+{pregunta}
+"""
+
+        return prompt
+
+    except Exception as e:
+
+        return f"Error analizando documento largo: {e}"
 if __name__ == "__main__":
     main()
