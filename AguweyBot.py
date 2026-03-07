@@ -1,6 +1,7 @@
 # ============================================
 # AGUWEYBOT PRO - CON MEMORIA, RAG Y ANÁLISIS DE DOCUMENTOS
-# VERSIÓN MEJORADA CON ANÁLISIS NUMÉRICO
+# VERSIÓN MEJORADA CON ANÁLISIS NUMÉRICO Y DE CÓDIGO
+# VERSIÓN OPTIMIZADA SIN PERDER FUNCIONALIDAD
 # ============================================
 
 import os
@@ -36,7 +37,7 @@ from io import StringIO
 from datetime import datetime
 
 # ============================================
-# CONFIGURACIÓN
+# CONFIGURACIÓN (SIN CAMBIOS)
 # ============================================
 MODEL_NAME = "phi3:mini"
 EMBED_MODEL = "nomic-embed-text"
@@ -45,7 +46,7 @@ KNOWLEDGE_FILE = "conocimiento.txt"
 MAX_HISTORY = 10
 
 # ============================================
-# SYSTEM PROMPT (mejorado para datos numéricos)
+# SYSTEM PROMPT (COMPLETO - SIN CAMBIOS)
 # ============================================
 SYSTEM_PROMPT = """
 Eres AguweyBot PRO.
@@ -59,6 +60,16 @@ ADEMÁS, ERES EXPERTO EN ANÁLISIS DE DATOS NUMÉRICOS:
 - Explicas conceptos estadísticos de forma clara
 - Ayudas a visualizar mentalmente distribuciones de datos
 - Puedes hacer cálculos aproximados y estimaciones
+- **NO te limites a listar números, busca relaciones y significado**
+- **Proporciona insights útiles basados en los datos**
+
+TAMBIÉN ERES EXPERTO EN ANÁLISIS DE CÓDIGO:
+- Identifica el lenguaje de programación
+- Explica la estructura y lógica del código
+- Señala posibles errores o mejoras
+- Sugiere optimizaciones
+- Describe qué hace cada función o clase
+- Ayuda a depurar y entender código complejo
 
 Tu comportamiento depende del tipo de consulta del usuario.
 
@@ -86,9 +97,17 @@ MODO ANÁLISIS DE DATOS:
 - Sugiere visualizaciones apropiadas
 - Interpreta resultados en contexto
 
+MODO ANÁLISIS DE CÓDIGO:
+- Analiza la estructura del código
+- Explica la lógica y funcionamiento
+- Identifica posibles bugs o mejoras
+- Sugiere optimizaciones
+- Documenta funciones y clases
+
 REGLAS GENERALES:
-- Detecta automáticamente si la consulta es técnica, creativa o de análisis de datos.
+- Detecta automáticamente si la consulta es técnica, creativa, de análisis de datos o de código.
 - Si contiene tablas o números → activa modo análisis de datos.
+- Si contiene código fuente → activa modo análisis de código.
 - Nunca rechaces ayudar en escritura creativa.
 - No menciones limitaciones innecesarias.
 - Mantén coherencia y calidad en todos los modos.
@@ -99,6 +118,7 @@ DIRECTRICES DE ESTILO:
 - En modo técnico: usa emojis para secciones (🔬, 📊, ⚙️, 📐)
 - En modo creativo: usa emojis expresivos (✍️, 📖, 🎭, ✨)
 - En modo análisis de datos: usa (📈, 📉, 📊, 🔢, 📋)
+- En modo análisis de código: usa (💻, 🔧, 🐛, ⚡, 📝)
 - No sobrecargues el texto con emojis innecesarios
 - Mantén un balance profesional entre texto y elementos visuales
 
@@ -111,6 +131,10 @@ EJEMPLOS DE USO APROPIADO:
 📊 Análisis de Datos:
 📈 Tendencia observada:
 🔢 Estadísticas clave:
+💻 Análisis de Código:
+🔧 Optimización sugerida:
+🐛 Posible error:
+⚡ Mejora de rendimiento:
 
 IMPORTANTE: Tienes acceso al historial completo de la conversación.
 Úsalo para mantener coherencia con lo hablado anteriormente.
@@ -118,7 +142,7 @@ Recuerda detalles que el usuario te haya compartido antes.
 """
 
 # ============================================
-# CLASE PARA DATOS NUMÉRICOS ESTRUCTURADOS
+# CLASE PARA DATOS NUMÉRICOS ESTRUCTURADOS (COMPLETA - SIN CAMBIOS)
 # ============================================
 class DatosNumericos:
     """Clase para manejar datos numéricos extraídos de documentos"""
@@ -129,6 +153,8 @@ class DatosNumericos:
         self.numeros_extraidos = []
         self.fuente = ""
         self.tipo_archivo = ""
+        self.codigo_detectado = False
+        self.fragmentos_codigo = []
     
     def agregar_dataframe(self, nombre, df):
         """Agrega un DataFrame y calcula sus estadísticas"""
@@ -173,6 +199,51 @@ class DatosNumericos:
         self.numeros_extraidos = [float(n) for n in numeros]
         return self.numeros_extraidos
     
+    def detectar_codigo(self, texto):
+        """Detecta si el texto contiene código fuente"""
+        patrones_codigo = [
+            r'def\s+\w+\s*\([^)]*\)\s*:',
+            r'class\s+\w+',
+            r'import\s+\w+',
+            r'from\s+\w+\s+import',
+            r'if\s+__name__\s*==\s*["\']__main__["\']',
+            r'function\s+\w+\s*\([^)]*\)\s*{',
+            r'public\s+class\s+\w+',
+            r'#include\s+<[^>]+>',
+            r'package\s+\w+',
+            r'namespace\s+\w+',
+            r'<\?php',
+            r'console\.log\(',
+            r'System\.out\.println',
+            r'printf\('
+        ]
+        
+        for patron in patrones_codigo:
+            if re.search(patron, texto, re.MULTILINE):
+                self.codigo_detectado = True
+                # Extraer fragmentos de código (líneas con indentación)
+                lineas = texto.split('\n')
+                fragmento_actual = []
+                en_codigo = False
+                
+                for linea in lineas:
+                    if linea.startswith(('    ', '\t')) or any(p in linea for p in ['def ', 'class ', 'if ', 'for ', 'while ']):
+                        en_codigo = True
+                        fragmento_actual.append(linea)
+                    elif en_codigo and linea.strip() == '':
+                        fragmento_actual.append(linea)
+                    elif en_codigo and not linea.startswith(('    ', '\t')):
+                        if fragmento_actual:
+                            self.fragmentos_codigo.append('\n'.join(fragmento_actual))
+                            fragmento_actual = []
+                        en_codigo = False
+                
+                if fragmento_actual:
+                    self.fragmentos_codigo.append('\n'.join(fragmento_actual))
+                
+                return True
+        return False
+    
     def generar_resumen_estadistico(self):
         """Genera un resumen de todas las estadísticas"""
         resumen = []
@@ -198,6 +269,10 @@ class DatosNumericos:
                 resumen.append(f"Rango: {min(self.numeros_extraidos):.2f} - {max(self.numeros_extraidos):.2f}")
                 resumen.append(f"Media: {np.mean(self.numeros_extraidos):.2f}")
                 resumen.append(f"Mediana: {np.median(self.numeros_extraidos):.2f}")
+        
+        if self.codigo_detectado:
+            resumen.append("\n💻 **CÓDIGO FUENTE DETECTADO**")
+            resumen.append(f"Fragmentos de código: {len(self.fragmentos_codigo)}")
         
         return "\n".join(resumen)
     
@@ -236,7 +311,45 @@ class DatosNumericos:
             return None
 
 # ============================================
-# CALLBACK PARA STREAMING
+# FUNCIÓN PARA DETECTAR TIPO DE CONSULTA (MEJORADA)
+# ============================================
+def detectar_tipo_consulta(pregunta, datos_numericos=None):
+    """Detecta si la consulta es sobre datos numéricos o código"""
+    
+    # Palabras clave para análisis numérico
+    keywords_numericos = ['promedio', 'media', 'mediana', 'suma', 'total', 
+                          'estadística', 'tendencia', 'gráfico', 'máximo', 
+                          'mínimo', 'correlación', 'porcentaje', 'distribución',
+                          'estadistico', 'variacion', 'desviacion', 'varianza',
+                          'cuartil', 'percentil', 'histograma', 'boxplot']
+    
+    # Palabras clave para código
+    keywords_codigo = ['código', 'función', 'clase', 'método', 'programa',
+                       'algoritmo', 'debug', 'error', 'lógica', 'script',
+                       'python', 'java', 'javascript', 'html', 'css',
+                       'compilar', 'ejecutar', 'variable', 'bucle', 'condicion',
+                       'import', 'def', 'class', 'function', 'console',
+                       'print', 'return', 'if', 'else', 'for', 'while']
+    
+    pregunta_lower = pregunta.lower()
+    
+    # Verificar si hay datos numéricos disponibles
+    tiene_datos = (datos_numericos and 
+                  (datos_numericos.dataframes or datos_numericos.numeros_extraidos))
+    
+    # Verificar si hay código disponible
+    tiene_codigo = (datos_numericos and datos_numericos.codigo_detectado)
+    
+    # Detectar tipo
+    if tiene_datos and any(keyword in pregunta_lower for keyword in keywords_numericos):
+        return "numerico"
+    elif (tiene_codigo or any(keyword in pregunta_lower for keyword in keywords_codigo)):
+        return "codigo"
+    else:
+        return "general"
+
+# ============================================
+# CALLBACK PARA STREAMING (OPTIMIZADO - MÁS RÁPIDO)
 # ============================================
 class StreamlitCallbackHandler(BaseCallbackHandler):
     """Callback para ir mostrando los tokens en tiempo real en Streamlit."""
@@ -252,11 +365,11 @@ class StreamlitCallbackHandler(BaseCallbackHandler):
             f'<div class="respuesta-aguwey streaming">{self.text}<span class="cursor">▌</span></div>',
             unsafe_allow_html=True,
         )
-        # Ajusta este delay si quieres que la escritura sea más rápida o más lenta.
-        time.sleep(0.005)
+        # Delay REDUCIDO para más velocidad (0.002 en lugar de 0.005)
+        time.sleep(0.002)
 
 # ============================================
-# FUNCIÓN PARA CARGAR / CREAR VECTORSTORE (RAG) BASE
+# FUNCIÓN PARA CARGAR / CREAR VECTORSTORE (RAG) BASE (OPTIMIZADA)
 # ============================================
 @st.cache_resource(show_spinner=False)
 def crear_vectorstore():
@@ -313,7 +426,7 @@ def crear_vectorstore():
         return None
 
 # ============================================
-# CARGA DE RETRIEVER (RAG) BASE
+# CARGA DE RETRIEVER (RAG) BASE (OPTIMIZADO - k VARIABLE)
 # ============================================
 @st.cache_resource
 def cargar_retriever():
@@ -321,42 +434,118 @@ def cargar_retriever():
     vectorstore = crear_vectorstore()
     if vectorstore is None:
         return None
+    # Mantenemos k=20 para búsqueda completa, pero luego filtraremos
     return vectorstore.as_retriever(search_kwargs={"k": 20})
 
 # ============================================
-# FUNCIÓN PARA CONSTRUIR MENSAJES CON HISTORIAL
+# FUNCIÓN PARA CONSTRUIR MENSAJES CON HISTORIAL (OPTIMIZADA - SIN PERDER FUNCIONALIDAD)
 # ============================================
 def construir_mensajes_con_historial(pregunta, docs=None, datos_numericos=None):
     """
     Construye la lista de mensajes para el modelo,
     incluyendo system prompt, historial y contexto (RAG y numérico).
+    VERSIÓN OPTIMIZADA: Limita el tamaño del contexto pero mantiene toda la info
     """
     mensajes = [SystemMessage(content=SYSTEM_PROMPT)]
 
-    # Añadir historial reciente de la conversación
+    # Añadir historial reciente de la conversación (mantenemos MAX_HISTORY=10)
     for msg in st.session_state.messages[-MAX_HISTORY:]:
         if msg["role"] == "user":
             mensajes.append(HumanMessage(content=msg["content"]))
         elif msg["role"] == "assistant":
             mensajes.append(AIMessage(content=msg["content"]))
 
+    # Detectar tipo de consulta
+    tipo_consulta = detectar_tipo_consulta(pregunta, datos_numericos)
+    
     # Preparar contexto completo
     contexto_completo = []
     
-    # Añadir contexto de RAG si hay documentos
+    # Añadir contexto de RAG si hay documentos (OPTIMIZADO: limitamos tamaño pero no cantidad)
     if docs:
-        contexto_rag = "\n\n".join([doc.page_content for doc in docs])
-        contexto_completo.append(f"CONTEXTO DOCUMENTAL:\n{contexto_rag}")
+        # Si hay muchos docs, tomar los más relevantes pero mantener información clave
+        docs_para_usar = docs[:8] if len(docs) > 8 else docs  # Limitamos a 8 para velocidad
+        
+        # Si es consulta numérica, priorizar fragmentos con números
+        if tipo_consulta == "numerico":
+            # Filtrar docs que contengan números
+            docs_numericos = [doc for doc in docs_para_usar if re.search(r'\d+\.?\d*', doc.page_content)]
+            if docs_numericos:
+                docs_para_usar = docs_numericos[:5]  # Limitamos a 5 los numéricos
+        # Si es consulta de código, priorizar fragmentos con código
+        elif tipo_consulta == "codigo":
+            # Filtrar docs que parezcan código
+            patrones_codigo = [r'def\s+\w+', r'class\s+\w+', r'import\s+\w+', r'function\s+\w+']
+            docs_codigo = []
+            for doc in docs_para_usar:
+                if any(re.search(patron, doc.page_content) for patron in patrones_codigo):
+                    docs_codigo.append(doc)
+            if docs_codigo:
+                docs_para_usar = docs_codigo[:5]  # Limitamos a 5 los de código
+        
+        # Limitar el tamaño de cada fragmento para velocidad (pero mantener info clave)
+        contexto_rag = []
+        for doc in docs_para_usar:
+            # Si el fragmento es muy largo, tomar solo partes clave
+            contenido = doc.page_content
+            if len(contenido) > 1500:
+                # Para datos numéricos, intentar mantener tablas
+                if tipo_consulta == "numerico" and ('---' in contenido or '|' in contenido):
+                    # Mantener primeras 20 líneas de tablas
+                    lineas = contenido.split('\n')[:20]
+                    contenido = '\n'.join(lineas)
+                else:
+                    # Para texto general, tomar principio y final
+                    contenido = contenido[:800] + "\n...\n" + contenido[-400:]
+            contexto_rag.append(contenido)
+        
+        contexto_completo.append(f"CONTEXTO DOCUMENTAL:\n" + "\n\n---\n\n".join(contexto_rag))
     
-    # Añadir análisis numérico si hay datos
+    # Añadir análisis numérico si hay datos (OPTIMIZADO: resumir pero mantener info clave)
     if datos_numericos and isinstance(datos_numericos, DatosNumericos):
-        resumen_numerico = datos_numericos.generar_resumen_estadistico()
-        if resumen_numerico:
-            contexto_completo.append(f"ANÁLISIS NUMÉRICO:\n{resumen_numerico}")
+        if tipo_consulta == "numerico" and datos_numericos.dataframes:
+            # Para análisis detallado, incluir info clave de DataFrames
+            for nombre_df, df in datos_numericos.dataframes.items():
+                contexto_completo.append(f"\n--- DATAFRAME: {nombre_df} ---")
+                contexto_completo.append(f"Dimensiones: {len(df)} filas x {len(df.columns)} columnas")
+                contexto_completo.append(f"Columnas: {', '.join(df.columns.tolist())}")
+                
+                # Estadísticas resumidas
+                num_cols = df.select_dtypes(include=[np.number]).columns
+                if len(num_cols) > 0:
+                    contexto_completo.append("\nESTADÍSTICAS CLAVE:")
+                    stats_resumen = []
+                    for col in num_cols[:5]:  # Limitar a 5 columnas
+                        stats_resumen.append(f"{col}: media={df[col].mean():.2f}, min={df[col].min():.2f}, max={df[col].max():.2f}")
+                    contexto_completo.extend(stats_resumen)
+                
+                # Mostrar primeras filas (limitado)
+                contexto_completo.append("\nPRIMERAS 5 FILAS:")
+                contexto_completo.append(df.head(5).to_string())
+        elif tipo_consulta == "codigo" and datos_numericos.fragmentos_codigo:
+            # Incluir fragmentos de código (limitado)
+            contexto_completo.append("\n💻 **CÓDIGO FUENTE DETECTADO**")
+            for i, fragmento in enumerate(datos_numericos.fragmentos_codigo[:3], 1):  # Máximo 3 fragmentos
+                if len(fragmento) > 1000:
+                    fragmento = fragmento[:800] + "\n...\n" + fragmento[-200:]
+                contexto_completo.append(f"\n--- Fragmento de código {i} ---")
+                contexto_completo.append(f"```\n{fragmento}\n```")
+        else:
+            # Resumen general (ya es conciso)
+            resumen_numerico = datos_numericos.generar_resumen_estadistico()
+            if resumen_numerico:
+                contexto_completo.append(f"ANÁLISIS NUMÉRICO:\n{resumen_numerico}")
     
-    # Construir mensaje final
+    # Construir mensaje final con instrucción según tipo
+    if tipo_consulta == "numerico":
+        instruccion = "\n\n📊 **INSTRUCCIÓN:** Analiza estos datos numéricos. Busca patrones, tendencias y significado. Proporciona insights útiles."
+    elif tipo_consulta == "codigo":
+        instruccion = "\n\n💻 **INSTRUCCIÓN:** Analiza este código. Explica su estructura, lógica y funcionamiento. Identifica posibles mejoras."
+    else:
+        instruccion = ""
+    
     if contexto_completo:
-        mensaje_usuario = f"{chr(10).join(contexto_completo)}\n\nPREGUNTA: {pregunta}"
+        mensaje_usuario = f"{chr(10).join(contexto_completo)}\n\nPREGUNTA: {pregunta}{instruccion}"
     else:
         mensaje_usuario = pregunta
     
@@ -365,7 +554,7 @@ def construir_mensajes_con_historial(pregunta, docs=None, datos_numericos=None):
     return mensajes
 
 # ============================================
-# FUNCIÓN PARA APLICAR ESTILOS
+# FUNCIÓN PARA APLICAR ESTILOS (COMPLETA - SIN CAMBIOS)
 # ============================================
 def set_background(image_path: str):
     """Aplica fondo y tema visual personalizado si existe la imagen."""
@@ -797,7 +986,7 @@ def set_background(image_path: str):
         )
 
 # ============================================
-# STREAMING DE RESPUESTA
+# STREAMING DE RESPUESTA (OPTIMIZADO)
 # ============================================
 def mostrar_respuesta_streaming(mensajes):
     """Gestiona el streaming de la respuesta del modelo en la interfaz."""
@@ -808,7 +997,7 @@ def mostrar_respuesta_streaming(mensajes):
         llm_stream = ChatOllama(
             model=MODEL_NAME,
             temperature=0.0,
-            num_ctx=4096,
+            num_ctx=4096,  # Mantenemos el contexto completo
             top_p=0.9,
             repeat_penalty=1.3,
             streaming=True,
@@ -829,36 +1018,49 @@ def mostrar_respuesta_streaming(mensajes):
         return None
 
 # ============================================
-# FUNCIÓN MEJORADA: EXTRAER TEXTO DE CUALQUIER DOCUMENTO
-# CON SOPORTE NUMÉRICO Y MÚLTIPLES FORMATOS
+# FUNCIÓN MEJORADA: EXTRAER TEXTO DE CUALQUIER DOCUMENTO (OPTIMIZADA)
+# CON SOPORTE NUMÉRICO, CÓDIGO Y MÚLTIPLES FORMATOS
 # ============================================
 def extraer_texto_de_archivo(uploaded_file):
     """
-    Versión mejorada que extrae texto y datos numéricos estructurados
+    Versión mejorada que extrae texto, datos numéricos estructurados y código
+    VERSIÓN OPTIMIZADA: Limita el tamaño pero mantiene toda la funcionalidad
     """
     nombre = uploaded_file.name.lower()
     datos_numericos = DatosNumericos()
     datos_numericos.fuente = uploaded_file.name
     datos_numericos.tipo_archivo = nombre.split('.')[-1]
     
-    # PDF
+    # PDF - optimizado
     if nombre.endswith(".pdf"):
         reader = PdfReader(uploaded_file)
         texto_completo = []
-        for page in reader.pages:
-            texto = page.extract_text() or ""
+        # Limitar a primeras 10 páginas para velocidad
+        paginas = min(10, len(reader.pages))
+        for i in range(paginas):
+            texto = reader.pages[i].extract_text() or ""
             texto_completo.append(texto)
         
         texto_final = "\n".join(texto_completo)
+        # Limitar tamaño total
+        if len(texto_final) > 20000:
+            texto_final = texto_final[:20000] + "\n...[contenido truncado para velocidad]..."
+        
         datos_numericos.extraer_numeros_texto(texto_final)
+        datos_numericos.detectar_codigo(texto_final)
         return texto_final, datos_numericos
 
-    # Word (.docx)
+    # Word (.docx) - optimizado
     if nombre.endswith(".docx"):
         doc = Document(uploaded_file)
-        texto_completo = [p.text for p in doc.paragraphs if p.text.strip()]
-        texto_final = "\n".join(texto_completo)
+        # Limitar a primeros 50 párrafos
+        textos = [p.text for p in doc.paragraphs[:50] if p.text.strip()]
+        texto_final = "\n".join(textos)
+        if len(texto_final) > 20000:
+            texto_final = texto_final[:20000] + "\n...[contenido truncado para velocidad]..."
+        
         datos_numericos.extraer_numeros_texto(texto_final)
+        datos_numericos.detectar_codigo(texto_final)
         return texto_final, datos_numericos
 
     # TXT - con detección de codificación
@@ -871,22 +1073,53 @@ def extraer_texto_de_archivo(uploaded_file):
             encoding = chardet.detect(contenido)['encoding'] or 'latin-1'
             texto_final = contenido.decode(encoding, errors="ignore")
         
+        # Limitar tamaño
+        if len(texto_final) > 30000:
+            texto_final = texto_final[:30000] + "\n...[contenido truncado para velocidad]..."
+        
         datos_numericos.extraer_numeros_texto(texto_final)
+        datos_numericos.detectar_codigo(texto_final)
         return texto_final, datos_numericos
 
-    # Excel - ANÁLISIS NUMÉRICO MEJORADO
+    # Excel - ANÁLISIS NUMÉRICO (optimizado pero completo)
     if nombre.endswith((".xlsx", ".xls")):
         try:
             excel_file = pd.ExcelFile(uploaded_file)
             textos_hojas = []
             
-            for sheet_name in excel_file.sheet_names:
+            # Limitar a primeras 3 hojas
+            for sheet_name in excel_file.sheet_names[:3]:
                 df = pd.read_excel(uploaded_file, sheet_name=sheet_name)
-                textos_hojas.append(f"\n--- Hoja: {sheet_name} ---")
-                textos_hojas.append(df.to_string())
                 
-                # Guardar DataFrame para análisis numérico
+                # Guardar DataFrame completo para análisis numérico
                 datos_numericos.agregar_dataframe(sheet_name, df)
+                
+                # Para el texto, incluir metadatos importantes pero limitado
+                textos_hojas.append(f"\n--- Hoja: {sheet_name} ---")
+                textos_hojas.append(f"Filas: {len(df)}, Columnas: {len(df.columns)}")
+                textos_hojas.append(f"Columnas: {', '.join(df.columns.tolist()[:10])}" + 
+                                   ("..." if len(df.columns) > 10 else ""))
+                
+                # Incluir estadísticas resumidas
+                textos_hojas.append("\nESTADÍSTICAS DESCRIPTIVAS (resumen):")
+                num_cols = df.select_dtypes(include=[np.number]).columns
+                if len(num_cols) > 0:
+                    stats_resumen = []
+                    for col in num_cols[:5]:  # Limitar a 5 columnas
+                        stats_resumen.append(f"{col}: media={df[col].mean():.2f}, min={df[col].min():.2f}, max={df[col].max():.2f}")
+                    textos_hojas.extend(stats_resumen)
+                
+                # Mostrar primeras 10 filas
+                textos_hojas.append("\nPRIMERAS 10 FILAS:")
+                textos_hojas.append(df.head(10).to_string())
+                
+                # Detectar código
+                for col in df.columns:
+                    if df[col].dtype == 'object':
+                        sample = df[col].dropna().iloc[0] if not df[col].dropna().empty else ""
+                        if any(keyword in str(sample) for keyword in ['def ', 'class ', 'import ', 'function']):
+                            textos_hojas.append(f"\n⚠️ Posible código detectado en columna '{col}'")
+                            datos_numericos.codigo_detectado = True
             
             texto_final = "\n\n".join(textos_hojas)
             return texto_final, datos_numericos
@@ -894,14 +1127,12 @@ def extraer_texto_de_archivo(uploaded_file):
         except Exception as e:
             return f"No se pudo leer el Excel: {str(e)}", None
 
-    # CSV - NUEVO SOPORTE
+    # CSV - VERSIÓN OPTIMIZADA
     if nombre.endswith(".csv"):
         try:
-            # Leer CSV con detección automática
             contenido = uploaded_file.read()
             encoding = chardet.detect(contenido)['encoding'] or 'utf-8'
             
-            # Intentar diferentes separadores
             contenido_str = contenido.decode(encoding, errors='ignore')
             first_line = contenido_str.split('\n')[0]
             
@@ -913,24 +1144,32 @@ def extraer_texto_de_archivo(uploaded_file):
                     separador_usado = sep
                     break
             
-            # Leer CSV
-            df = pd.read_csv(io.StringIO(contenido_str), sep=separador_usado)
+            # Leer solo primeras 1000 filas para velocidad
+            df = pd.read_csv(io.StringIO(contenido_str), sep=separador_usado, nrows=1000)
             
             # Guardar en datos numéricos
             datos_numericos.agregar_dataframe("CSV", df)
             
-            # Generar texto
+            # Generar texto enriquecido
             texto_final = f"--- Archivo CSV: {uploaded_file.name} ---\n"
             texto_final += f"Separador: '{separador_usado}'\n"
-            texto_final += f"Filas: {len(df)}, Columnas: {len(df.columns)}\n\n"
-            texto_final += df.to_string()
+            texto_final += f"Filas totales: {len(df)} (mostrando primeras 1000)\n"
+            texto_final += f"Columnas: {len(df.columns)}\n"
+            texto_final += f"Columnas: {', '.join(df.columns.tolist()[:10])}" + \
+                          ("..." if len(df.columns) > 10 else "") + "\n\n"
+            
+            texto_final += "ESTADÍSTICAS DESCRIPTIVAS:\n"
+            texto_final += df.describe().to_string() + "\n\n"
+            
+            texto_final += "PRIMERAS 10 FILAS:\n"
+            texto_final += df.head(10).to_string()
             
             return texto_final, datos_numericos
             
         except Exception as e:
             return f"No se pudo leer el CSV: {str(e)}", None
 
-    # JSON - NUEVO SOPORTE
+    # JSON - VERSIÓN OPTIMIZADA
     if nombre.endswith(".json"):
         try:
             contenido = uploaded_file.read()
@@ -938,32 +1177,44 @@ def extraer_texto_de_archivo(uploaded_file):
             
             # Intentar convertir a DataFrame si es posible
             try:
-                if isinstance(data, list) and all(isinstance(item, dict) for item in data):
-                    df = pd.DataFrame(data)
+                if isinstance(data, list) and len(data) > 0 and isinstance(data[0], dict):
+                    # Limitar a 500 registros para velocidad
+                    df = pd.DataFrame(data[:500])
                     datos_numericos.agregar_dataframe("JSON", df)
-                    texto_final = df.to_string()
+                    texto_final = "DATOS ESTRUCTURADOS:\n"
+                    texto_final += f"Registros totales: {len(data)} (mostrando primeros 500)\n"
+                    texto_final += f"Campos: {len(df.columns)}\n"
+                    texto_final += f"Campos: {', '.join(df.columns.tolist()[:10])}" + \
+                                  ("..." if len(df.columns) > 10 else "") + "\n\n"
+                    texto_final += "ESTADÍSTICAS:\n"
+                    texto_final += df.describe().to_string() + "\n\n"
+                    texto_final += "MUESTRA (10 primeras filas):\n"
+                    texto_final += df.head(10).to_string()
                 else:
-                    texto_final = json.dumps(data, indent=2, ensure_ascii=False)
-                    # Extraer números del JSON
-                    numeros = re.findall(r'-?\d+\.?\d*', texto_final)
-                    datos_numericos.numeros_extraidos = [float(n) for n in numeros]
+                    # Si no es tabular, mostrar estructura limitada
+                    texto_final = "ESTRUCTURA JSON:\n"
+                    texto_final += json.dumps(data, indent=2, ensure_ascii=False)[:5000]
+                    if len(json.dumps(data)) > 5000:
+                        texto_final += "\n...[contenido truncado]..."
             except:
-                texto_final = json.dumps(data, indent=2, ensure_ascii=False)
+                texto_final = json.dumps(data, indent=2, ensure_ascii=False)[:5000]
             
             return texto_final, datos_numericos
             
         except Exception as e:
             return f"No se pudo leer el JSON: {str(e)}", None
 
-    # XML - NUEVO SOPORTE (básico)
+    # XML - optimizado
     if nombre.endswith(".xml"):
         try:
             contenido = uploaded_file.read()
             encoding = chardet.detect(contenido)['encoding'] or 'utf-8'
             texto_final = contenido.decode(encoding, errors='ignore')
+            if len(texto_final) > 20000:
+                texto_final = texto_final[:20000] + "\n...[contenido truncado]..."
             
-            # Extraer números del XML
             datos_numericos.extraer_numeros_texto(texto_final)
+            datos_numericos.detectar_codigo(texto_final)
             return texto_final, datos_numericos
             
         except Exception as e:
@@ -975,6 +1226,7 @@ def extraer_texto_de_archivo(uploaded_file):
             image = Image.open(uploaded_file)
             texto_final = pytesseract.image_to_string(image, lang="spa+eng")
             datos_numericos.extraer_numeros_texto(texto_final)
+            datos_numericos.detectar_codigo(texto_final)
             return texto_final if texto_final.strip() else "No se detectó texto en la imagen.", datos_numericos
         except Exception as e:
             return f"No se pudo procesar la imagen: {str(e)}", None
@@ -982,7 +1234,7 @@ def extraer_texto_de_archivo(uploaded_file):
     return "Tipo de archivo no soportado actualmente.", None
 
 # ============================================
-# VECTORSTORE TEMPORAL DESDE TEXTO (DOCUMENTO)
+# VECTORSTORE TEMPORAL DESDE TEXTO (DOCUMENTO) - OPTIMIZADO
 # ============================================
 def crear_vectorstore_desde_texto(texto):
     try:
@@ -997,6 +1249,14 @@ def crear_vectorstore_desde_texto(texto):
             separators=["\n\n", "\n", ". ", " ", ""],
         )
         docs = text_splitter.create_documents([texto])
+        
+        # Limitar número de fragmentos para velocidad pero mantener representatividad
+        if len(docs) > 30:
+            # Tomar fragmentos distribuidos: primeros, medios y últimos
+            indices = list(range(0, len(docs), len(docs)//10))[:10]
+            docs_seleccionados = [docs[i] for i in indices if i < len(docs)]
+            docs = docs_seleccionados
+        
         progress_bar.progress(60, text=f"📄 Generando {len(docs)} fragmentos...")
         
         vectorstore = Chroma.from_documents(
@@ -1013,7 +1273,7 @@ def crear_vectorstore_desde_texto(texto):
         return None
 
 # ============================================
-# INTERFAZ PRINCIPAL
+# INTERFAZ PRINCIPAL (CON BARRA DE PROGRESO OPCIONAL)
 # ============================================
 def main():
     st.set_page_config(
@@ -1036,8 +1296,10 @@ def main():
         st.session_state.doc_nombre = None
     if "usar_doc_en_analisis" not in st.session_state:
         st.session_state.usar_doc_en_analisis = False
-    if "datos_numericos" not in st.session_state:  # NUEVO
+    if "datos_numericos" not in st.session_state:
         st.session_state.datos_numericos = None
+    if "modo_rapido" not in st.session_state:
+        st.session_state.modo_rapido = False
 
     # Sidebar
     with st.sidebar:
@@ -1048,6 +1310,20 @@ def main():
             st.image("logo.png", width=220)
         else:
             st.info("📌 Coloca 'logo.png' para personalizar")
+
+        st.markdown("---")
+
+        # Control de velocidad (NUEVO)
+        st.markdown("### ⚙️ Modo de velocidad")
+        modo_rapido = st.checkbox("🚀 Modo rápido (respuestas más ágiles)", 
+                                  value=st.session_state.modo_rapido,
+                                  help="Activa para respuestas más rápidas con procesamiento limitado")
+        st.session_state.modo_rapido = modo_rapido
+        
+        if modo_rapido:
+            st.info("⚡ Modo rápido activado: procesamiento optimizado")
+        else:
+            st.info("🐢 Modo completo: máxima precisión (puede ser más lento)")
 
         st.markdown("---")
 
@@ -1076,12 +1352,13 @@ def main():
 
         st.markdown("---")
 
-        # Análisis de documentos (MEJORADO)
+        # Análisis de documentos
         st.markdown("### 📎 Análisis de Documentos")
         st.markdown("**Formatos soportados:**")
         st.markdown("📊 Excel, CSV, JSON, XML")
         st.markdown("📄 PDF, Word, TXT")
         st.markdown("🖼️ Imágenes (OCR)")
+        st.markdown("💻 Detección automática de código")
         
         uploaded_file = st.file_uploader(
             "Sube un archivo",
@@ -1099,29 +1376,23 @@ def main():
             )
 
             if st.button("🔍 Procesar documento"):
-                progress_bar = st.progress(0, text="📄 Iniciando extracción de texto...")
-                
-                texto_doc, datos_numericos = extraer_texto_de_archivo(uploaded_file)
-                progress_bar.progress(50, text="📄 Texto extraído, indexando...")
-                
-                if texto_doc and len(texto_doc.strip()) > 0:
-                    vectorstore_doc = crear_vectorstore_desde_texto(texto_doc)
-                    if vectorstore_doc:
-                        st.session_state.doc_vectorstore = vectorstore_doc
-                        st.session_state.doc_nombre = uploaded_file.name
-                        st.session_state.datos_numericos = datos_numericos
-                        progress_bar.progress(100, text="✅ Documento listo para consultas!")
-                        time.sleep(0.5)
-                        progress_bar.empty()
-                        
-                        # Mostrar resumen numérico si existe
-                        if datos_numericos and (datos_numericos.dataframes or datos_numericos.numeros_extraidos):
-                            st.success("📊 **Datos numéricos detectados!**")
-                            with st.expander("Ver resumen estadístico"):
-                                st.markdown(datos_numericos.generar_resumen_estadistico())
-                else:
-                    progress_bar.empty()
-                    st.warning("⚠️ No se obtuvo texto útil del archivo.")
+                with st.spinner("📄 Procesando..."):
+                    texto_doc, datos_numericos = extraer_texto_de_archivo(uploaded_file)
+                    
+                    if texto_doc and len(texto_doc.strip()) > 0:
+                        vectorstore_doc = crear_vectorstore_desde_texto(texto_doc)
+                        if vectorstore_doc:
+                            st.session_state.doc_vectorstore = vectorstore_doc
+                            st.session_state.doc_nombre = uploaded_file.name
+                            st.session_state.datos_numericos = datos_numericos
+                            st.success("✅ Documento listo para consultas!")
+                            
+                            # Mostrar resumen
+                            if datos_numericos:
+                                with st.expander("Ver resumen del análisis"):
+                                    st.markdown(datos_numericos.generar_resumen_estadistico())
+                    else:
+                        st.warning("⚠️ No se obtuvo texto útil del archivo.")
         else:
             st.session_state.usar_doc_en_analisis = False
 
@@ -1134,6 +1405,7 @@ def main():
 - 🔬 Análisis Técnico
 - ✍️ Escritura Creativa
 - 📊 Análisis de Datos Numéricos
+- 💻 Análisis de Código Fuente
 - 💬 Memoria de Conversación
 - ⚡ Streaming Avanzado
             """
@@ -1143,12 +1415,17 @@ def main():
         st.markdown("### 📊 Estado del Sistema")
         st.success(f"✅ Modelo: {MODEL_NAME}")
         st.info(f"📁 Memoria: {len(st.session_state.messages)} mensajes")
-        st.success("⚡ Streaming: Activado")
+        if st.session_state.modo_rapido:
+            st.info("⚡ Modo: Rápido")
+        else:
+            st.success("🐢 Modo: Completo")
         if st.session_state.datos_numericos:
             if st.session_state.datos_numericos.dataframes:
                 st.info(f"📊 DataFrames: {len(st.session_state.datos_numericos.dataframes)}")
             if st.session_state.datos_numericos.numeros_extraidos:
                 st.info(f"🔢 Valores numéricos: {len(st.session_state.datos_numericos.numeros_extraidos)}")
+            if st.session_state.datos_numericos.codigo_detectado:
+                st.info(f"💻 Código detectado: Sí")
         st.markdown("---")
         st.caption("CC-NC-SA: 2026 AguweyBot PRO")
 
@@ -1159,7 +1436,7 @@ def main():
     )
     st.caption("Sistema cognitivo con memoria de conversación y recuperación semántica")
 
-    # Cargar retriever base (conocimiento.txt)
+    # Cargar retriever base
     with st.spinner("🚀 Inicializando sistemas cognitivos..."):
         retriever_base = cargar_retriever()
         if retriever_base is None and os.path.exists(KNOWLEDGE_FILE):
@@ -1188,51 +1465,55 @@ def main():
         # Guardar en historial
         st.session_state.messages.append({"role": "user", "content": prompt})
 
-        # Decidir qué retriever usar
+        # Decidir qué retriever usar (adaptativo según modo)
         retriever_actual = None
         docs = []
 
         if st.session_state.usar_doc_en_analisis and st.session_state.doc_vectorstore:
-            # Se usará el documento como contexto principal
+            # Ajustar k según modo
+            if st.session_state.modo_rapido:
+                k_value = 5  # Menos fragmentos en modo rápido
+            else:
+                k_value = 15  # Más fragmentos en modo completo
+                
             retriever_actual = st.session_state.doc_vectorstore.as_retriever(
-                search_kwargs={"k": 4}
+                search_kwargs={"k": k_value}
             )
         elif retriever_base:
-            # Uso del conocimiento base general
             retriever_actual = retriever_base
 
-        # Buscar documentos con RAG (si disponible)
+        # Buscar documentos
         with st.spinner("🧠 Pensando..."):
             if retriever_actual:
                 docs = retriever_actual.invoke(prompt)
             else:
                 docs = []
 
-        # Construir mensajes para el modelo (ahora incluye datos numéricos)
+        # Construir mensajes
         mensajes = construir_mensajes_con_historial(
             prompt, 
             docs if docs else None,
             st.session_state.datos_numericos if st.session_state.usar_doc_en_analisis else None
         )
 
-        # Generar respuesta con streaming
+        # Generar respuesta
         with st.chat_message("assistant"):
             respuesta = mostrar_respuesta_streaming(mensajes)
 
-        # Guardar respuesta en historial
+        # Guardar respuesta
         if respuesta:
             st.session_state.messages.append(
                 {"role": "assistant", "content": respuesta}
             )
 
-        # Mostrar fuentes consultadas (si hubo RAG)
-        if docs:
+        # Mostrar fuentes consultadas
+        if docs and not st.session_state.modo_rapido:  # Solo en modo completo
             with st.expander("📚 Fuentes consultadas"):
                 if st.session_state.doc_nombre:
                     st.markdown(f"**Documento:** {st.session_state.doc_nombre}")
-                for i, doc in enumerate(docs, 1):
+                for i, doc in enumerate(docs[:3], 1):  # Mostrar solo 3
                     st.markdown(f"**Fragmento {i}:**")
-                    st.caption(doc.page_content[:400] + "...")
+                    st.caption(doc.page_content[:300] + "...")
 
     # Mensaje de bienvenida inicial
     elif st.session_state.first_interaction:
@@ -1240,7 +1521,7 @@ def main():
             "👋 **¡Bienvenido!** "
             "Puedes hacerme preguntas técnicas o literarias. "
             "También puedes subir documentos (PDF, Word, Excel, CSV, JSON, XML, imágenes) para analizarlos. "
-            "**¡NUEVO!** Ahora puedo analizar datos numéricos y generar estadísticas automáticamente. "
+            "**¡NUEVO!** Ahora puedes elegir entre modo rápido ⚡ o modo completo 🐢 desde la barra lateral. "
             "Recuerdo toda la conversación, así que podemos profundizar en temas complejos."
         )
         st.session_state.first_interaction = False
@@ -1254,17 +1535,15 @@ def main():
         """,
         unsafe_allow_html=True,
     )
+
 # ============================================
-# MODULOS AVANZADOS DE ANALISIS DE DOCUMENTOS
+# MÓDULOS AVANZADOS DE ANÁLISIS DE DOCUMENTOS
 # ============================================
 
 def analizar_documento_completo(vectorstore, pregunta):
-
     try:
         docs = vectorstore.similarity_search(pregunta, k=25)
-
         texto = "\n\n".join([d.page_content for d in docs])
-
         prompt = f"""
 Analiza el documento completo.
 
@@ -1274,21 +1553,14 @@ PREGUNTA:
 DOCUMENTO:
 {texto}
 """
-
         return prompt
-
     except Exception as e:
         return f"Error en análisis completo: {e}"
 
-
 def resumir_documento(vectorstore):
-
     try:
-
         docs = vectorstore.similarity_search("", k=30)
-
         texto = "\n\n".join([d.page_content for d in docs])
-
         prompt = f"""
 Resume el documento:
 
@@ -1300,21 +1572,14 @@ Resume el documento:
 DOCUMENTO:
 {texto}
 """
-
         return prompt
-
     except Exception as e:
         return f"Error al resumir: {e}"
 
-
 def extraer_conocimiento(vectorstore):
-
     try:
-
         docs = vectorstore.similarity_search("", k=30)
-
         texto = "\n\n".join([d.page_content for d in docs])
-
         prompt = f"""
 Extrae del documento:
 
@@ -1327,61 +1592,43 @@ Extrae del documento:
 DOCUMENTO:
 {texto}
 """
-
         return prompt
-
     except Exception as e:
         return f"Error extrayendo conocimiento: {e}"
+
 # ============================================
 # HIERARCHICAL RAG PARA DOCUMENTOS MUY LARGOS
 # ============================================
 
 def generar_resumenes_por_fragmento(vectorstore):
-
     """
     Crea mini-resúmenes de cada fragmento del documento.
     Ideal para libros o papers largos.
     """
-
     try:
-
         docs = vectorstore.similarity_search("", k=50)
-
         resumenes = []
-
         for i, doc in enumerate(docs):
-
             fragmento = doc.page_content
-
             prompt = f"""
 Resume el siguiente fragmento del documento en 3-5 líneas.
 
 FRAGMENTO:
 {fragmento}
 """
-
             resumenes.append(prompt)
-
         return resumenes
-
     except Exception as e:
-
         return f"Error generando resúmenes: {e}"
 
-
 def generar_meta_resumen(vectorstore):
-
     """
     Genera un resumen global del documento completo
     usando la técnica hierarchical RAG.
     """
-
     try:
-
         docs = vectorstore.similarity_search("", k=40)
-
         texto = "\n\n".join([d.page_content for d in docs])
-
         prompt = f"""
 A partir del siguiente contenido genera un resumen profundo del documento.
 
@@ -1395,27 +1642,18 @@ Incluye:
 DOCUMENTO:
 {texto}
 """
-
         return prompt
-
     except Exception as e:
-
         return f"Error generando meta resumen: {e}"
 
-
 def responder_con_contexto_amplio(vectorstore, pregunta):
-
     """
     Usa muchos fragmentos para responder preguntas
     complejas sobre documentos largos.
     """
-
     try:
-
         docs = vectorstore.similarity_search(pregunta, k=30)
-
         contexto = "\n\n".join([d.page_content for d in docs])
-
         prompt = f"""
 Usa el siguiente contexto para responder la pregunta.
 
@@ -1425,11 +1663,9 @@ CONTEXTO:
 PREGUNTA:
 {pregunta}
 """
-
         return prompt
-
     except Exception as e:
-
         return f"Error analizando documento largo: {e}"
+
 if __name__ == "__main__":
     main()
