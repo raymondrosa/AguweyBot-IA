@@ -113,6 +113,14 @@ REGLAS GENERALES:
 - Mantén coherencia y calidad en todos los modos.
 - Si falta información, pide aclaración de forma profesional.
 
+REGLAS DE PRECISIÓN Y HONESTIDAD:
+- **REGLAS DE ORO:**
+    1.  **NO INVENTES INFORMACIÓN.** Si no sabes la respuesta o si la información requerida no está presente en el contexto proporcionado (RAG, datos numéricos, código) o en tu conocimiento base fundamental, indícalo claramente.
+    2.  Es preferible decir "No encuentro información sobre eso en los documentos proporcionados" o "Eso está fuera de mi conocimiento actual", a ofrecer una respuesta especulativa o incorrecta.
+- Cuando utilices información proveniente del contexto RAG o de los datos numéricos, prefija la oración con frases como "Según el documento...", "Los datos indican...", "El análisis del código muestra...". Esto te ayudará a mantenerte anclado a las fuentes.
+- Si la pregunta es ambigua, pide aclaración en lugar de asumir la intención del usuario.
+- Antes de responder, verifica mentalmente que tu respuesta esté directamente respaldada por la información disponible.
+
 DIRECTRICES DE ESTILO:
 - Utiliza emojis estratégicamente para mejorar la comunicación visual
 - En modo técnico: usa emojis para secciones (🔬, 📊, ⚙️, 📐)
@@ -536,22 +544,26 @@ def construir_mensajes_con_historial(pregunta, docs=None, datos_numericos=None):
             if resumen_numerico:
                 contexto_completo.append(f"ANÁLISIS NUMÉRICO:\n{resumen_numerico}")
     
-    # Construir mensaje final con instrucción según tipo
+    # Instrucciones explícitas de fidelidad al contexto
+    base_instruction = "Responde a la pregunta del usuario BASÁNDOTE ESTRICTAMENTE EN EL CONTEXTO PROPORCIONADO ARRIBA (documentos, datos numéricos, código, historial). NO inventes hechos, nombres o cifras que no aparezcan en el contexto. Si la información no está en el contexto, indícalo claramente."
+    
     if tipo_consulta == "numerico":
-        instruccion = "\n\n📊 **INSTRUCCIÓN:** Analiza estos datos numéricos. Busca patrones, tendencias y significado. Proporciona insights útiles."
+        instruccion = f"\n\n📊 **INSTRUCCIÓN DE ANÁLISIS NUMÉRICO:** {base_instruction} Realiza un análisis numérico detallado. Busca patrones, tendencias y significado en LOS DATOS PROPORCIONADOS. Proporciona insights útiles basados exclusivamente en ellos."
     elif tipo_consulta == "codigo":
-        instruccion = "\n\n💻 **INSTRUCCIÓN:** Analiza este código. Explica su estructura, lógica y funcionamiento. Identifica posibles mejoras."
+        instruccion = f"\n\n💻 **INSTRUCCIÓN DE ANÁLISIS DE CÓDIGO:** {base_instruction} Analiza el código proporcionado. Explica su estructura, lógica y funcionamiento según lo que ves. Identifica posibles mejoras basadas en el código mostrado."
     else:
-        instruccion = ""
+        instruccion = f"\n\n**INSTRUCCIÓN GENERAL:** {base_instruction}"
     
     if contexto_completo:
-        mensaje_usuario = f"{chr(10).join(contexto_completo)}\n\nPREGUNTA: {pregunta}{instruccion}"
+        mensaje_usuario = f"{chr(10).join(contexto_completo)}\n\nPREGUNTA DEL USUARIO: {pregunta}{instruccion}\n\nAntes de responder, verifica mentalmente que cada afirmación importante esté respaldada por el contexto. Si no lo está, reformula o elimina esa parte."
     else:
-        mensaje_usuario = pregunta
+        # Si no hay contexto, también damos una instrucción para ser honesto
+        mensaje_usuario = f"{pregunta}\n\n(Nota: No se ha proporcionado contexto adicional. Responde basándote en tu conocimiento general, pero si no sabes algo o la pregunta requiere información específica que no tienes, indícalo honestamente.)"
     
     mensajes.append(HumanMessage(content=mensaje_usuario))
 
     return mensajes
+
 
 # ============================================
 # FUNCIÓN PARA APLICAR ESTILOS (COMPLETA - SIN CAMBIOS)
@@ -996,10 +1008,10 @@ def mostrar_respuesta_streaming(mensajes):
 
         llm_stream = ChatOllama(
             model=MODEL_NAME,
-            temperature=0.0,
+            temperature=0.1,
             num_ctx=4096,  # Mantenemos el contexto completo
-            top_p=0.9,
-            repeat_penalty=1.3,
+            top_p=0.85,
+            repeat_penalty=1.2,
             streaming=True,
             callbacks=[callback],
         )
