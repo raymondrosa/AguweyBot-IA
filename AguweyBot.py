@@ -1,7 +1,7 @@
 # ============================================
 # AGUWEYBOT PRO - CON MEMORIA, RAG Y ANÁLISIS DE DOCUMENTOS
 # VERSIÓN MEJORADA CON ANÁLISIS NUMÉRICO Y DE CÓDIGO
-# VERSIÓN OPTIMIZADA SIN PERDER FUNCIONALIDAD
+# VERSIÓN OPTIMIZADA CON FUNCIONALIDAD DE AUDIO (ACCESIBILIDAD)
 # ============================================
 
 import os
@@ -37,6 +37,23 @@ from io import StringIO
 from datetime import datetime
 
 # ============================================
+# NUEVOS IMPORTS PARA FUNCIONALIDAD DE AUDIO
+# ============================================
+try:
+    from gtts import gTTS
+    TTS_AVAILABLE = True
+except ImportError:
+    TTS_AVAILABLE = False
+    st.warning("⚠️ Instala gtts para funcionalidad de texto a voz: pip install gtts")
+
+try:
+    import speech_recognition as sr
+    STT_AVAILABLE = True
+except ImportError:
+    STT_AVAILABLE = False
+    st.warning("⚠️ Instala SpeechRecognition para entrada por voz: pip install SpeechRecognition")
+
+# ============================================
 # CONFIGURACIÓN (SIN CAMBIOS)
 # ============================================
 MODEL_NAME = "phi3:mini"
@@ -46,7 +63,7 @@ KNOWLEDGE_FILE = "conocimiento.txt"
 MAX_HISTORY = 10
 
 # ============================================
-# SYSTEM PROMPT (COMPLETO - SIN CAMBIOS)
+# SYSTEM PROMPT (MEJORADO CON REGLAS DE PRECISIÓN)
 # ============================================
 SYSTEM_PROMPT = """
 Eres AguweyBot PRO.
@@ -150,7 +167,7 @@ Recuerda detalles que el usuario te haya compartido antes.
 """
 
 # ============================================
-# CLASE PARA DATOS NUMÉRICOS ESTRUCTURADOS (COMPLETA - SIN CAMBIOS)
+# CLASE PARA DATOS NUMÉRICOS ESTRUCTURADOS
 # ============================================
 class DatosNumericos:
     """Clase para manejar datos numéricos extraídos de documentos"""
@@ -319,7 +336,7 @@ class DatosNumericos:
             return None
 
 # ============================================
-# FUNCIÓN PARA DETECTAR TIPO DE CONSULTA (MEJORADA)
+# FUNCIÓN PARA DETECTAR TIPO DE CONSULTA
 # ============================================
 def detectar_tipo_consulta(pregunta, datos_numericos=None):
     """Detecta si la consulta es sobre datos numéricos o código"""
@@ -357,7 +374,57 @@ def detectar_tipo_consulta(pregunta, datos_numericos=None):
         return "general"
 
 # ============================================
-# CALLBACK PARA STREAMING (OPTIMIZADO - MÁS RÁPIDO)
+# FUNCIONES DE ACCESIBILIDAD POR AUDIO
+# ============================================
+
+def texto_a_voz(texto, idioma="es"):
+    """Convierte texto a audio y devuelve HTML con reproductor"""
+    if not TTS_AVAILABLE:
+        return "<p style='color: #f85149;'>⚠️ gTTS no instalado. Ejecuta: pip install gtts</p>"
+    
+    try:
+        tts = gTTS(text=texto, lang=idioma, slow=False)
+        audio_bytes = io.BytesIO()
+        tts.write_to_fp(audio_bytes)
+        audio_bytes.seek(0)
+        
+        audio_base64 = base64.b64encode(audio_bytes.read()).decode()
+        
+        audio_html = f"""
+        <audio controls style="width: 100%; margin: 10px 0; border-radius: 30px;">
+            <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
+            Tu navegador no soporta el elemento de audio.
+        </audio>
+        """
+        return audio_html
+    except Exception as e:
+        return f"<p style='color: #f85149;'>❌ Error generando audio: {e}</p>"
+
+def procesar_entrada_voz(audio_file):
+    """Convierte audio grabado a texto"""
+    if not STT_AVAILABLE:
+        return None, "SpeechRecognition no instalado. Ejecuta: pip install SpeechRecognition"
+    
+    try:
+        recognizer = sr.Recognizer()
+        
+        with sr.AudioFile(io.BytesIO(audio_file.read())) as source:
+            # Ajustar para ruido ambiental
+            recognizer.adjust_for_ambient_noise(source, duration=0.5)
+            audio_data = recognizer.record(source)
+            
+            # Reconocer en español
+            texto = recognizer.recognize_google(audio_data, language="es-ES")
+            return texto, None
+    except sr.UnknownValueError:
+        return None, "No se pudo entender el audio. Intenta hablar más claro o en un lugar más silencioso."
+    except sr.RequestError as e:
+        return None, f"Error con el servicio de reconocimiento: {e}"
+    except Exception as e:
+        return None, f"Error inesperado: {e}"
+
+# ============================================
+# CALLBACK PARA STREAMING (OPTIMIZADO)
 # ============================================
 class StreamlitCallbackHandler(BaseCallbackHandler):
     """Callback para ir mostrando los tokens en tiempo real en Streamlit."""
@@ -373,11 +440,11 @@ class StreamlitCallbackHandler(BaseCallbackHandler):
             f'<div class="respuesta-aguwey streaming">{self.text}<span class="cursor">▌</span></div>',
             unsafe_allow_html=True,
         )
-        # Delay REDUCIDO para más velocidad (0.002 en lugar de 0.005)
+        # Delay reducido para más velocidad
         time.sleep(0.002)
 
 # ============================================
-# FUNCIÓN PARA CARGAR / CREAR VECTORSTORE (RAG) BASE (OPTIMIZADA)
+# FUNCIÓN PARA CARGAR / CREAR VECTORSTORE (RAG) BASE
 # ============================================
 @st.cache_resource(show_spinner=False)
 def crear_vectorstore():
@@ -434,7 +501,7 @@ def crear_vectorstore():
         return None
 
 # ============================================
-# CARGA DE RETRIEVER (RAG) BASE (OPTIMIZADO - k VARIABLE)
+# CARGA DE RETRIEVER (RAG) BASE
 # ============================================
 @st.cache_resource
 def cargar_retriever():
@@ -442,21 +509,20 @@ def cargar_retriever():
     vectorstore = crear_vectorstore()
     if vectorstore is None:
         return None
-    # Mantenemos k=20 para búsqueda completa, pero luego filtraremos
     return vectorstore.as_retriever(search_kwargs={"k": 20})
 
 # ============================================
-# FUNCIÓN PARA CONSTRUIR MENSAJES CON HISTORIAL (OPTIMIZADA - SIN PERDER FUNCIONALIDAD)
+# FUNCIÓN PARA CONSTRUIR MENSAJES CON HISTORIAL (MEJORADA)
 # ============================================
 def construir_mensajes_con_historial(pregunta, docs=None, datos_numericos=None):
     """
     Construye la lista de mensajes para el modelo,
     incluyendo system prompt, historial y contexto (RAG y numérico).
-    VERSIÓN OPTIMIZADA: Limita el tamaño del contexto pero mantiene toda la info
+    VERSIÓN MEJORADA CON INSTRUCCIONES DE FIDELIDAD.
     """
     mensajes = [SystemMessage(content=SYSTEM_PROMPT)]
 
-    # Añadir historial reciente de la conversación (mantenemos MAX_HISTORY=10)
+    # Añadir historial reciente de la conversación
     for msg in st.session_state.messages[-MAX_HISTORY:]:
         if msg["role"] == "user":
             mensajes.append(HumanMessage(content=msg["content"]))
@@ -469,77 +535,64 @@ def construir_mensajes_con_historial(pregunta, docs=None, datos_numericos=None):
     # Preparar contexto completo
     contexto_completo = []
     
-    # Añadir contexto de RAG si hay documentos (OPTIMIZADO: limitamos tamaño pero no cantidad)
+    # Añadir contexto de RAG si hay documentos
     if docs:
-        # Si hay muchos docs, tomar los más relevantes pero mantener información clave
-        docs_para_usar = docs[:8] if len(docs) > 8 else docs  # Limitamos a 8 para velocidad
+        docs_para_usar = docs[:8] if len(docs) > 8 else docs
         
-        # Si es consulta numérica, priorizar fragmentos con números
+        # Filtrar según tipo de consulta
         if tipo_consulta == "numerico":
-            # Filtrar docs que contengan números
             docs_numericos = [doc for doc in docs_para_usar if re.search(r'\d+\.?\d*', doc.page_content)]
             if docs_numericos:
-                docs_para_usar = docs_numericos[:5]  # Limitamos a 5 los numéricos
-        # Si es consulta de código, priorizar fragmentos con código
+                docs_para_usar = docs_numericos[:5]
         elif tipo_consulta == "codigo":
-            # Filtrar docs que parezcan código
             patrones_codigo = [r'def\s+\w+', r'class\s+\w+', r'import\s+\w+', r'function\s+\w+']
             docs_codigo = []
             for doc in docs_para_usar:
                 if any(re.search(patron, doc.page_content) for patron in patrones_codigo):
                     docs_codigo.append(doc)
             if docs_codigo:
-                docs_para_usar = docs_codigo[:5]  # Limitamos a 5 los de código
+                docs_para_usar = docs_codigo[:5]
         
-        # Limitar el tamaño de cada fragmento para velocidad (pero mantener info clave)
+        # Limitar tamaño de cada fragmento
         contexto_rag = []
         for doc in docs_para_usar:
-            # Si el fragmento es muy largo, tomar solo partes clave
             contenido = doc.page_content
             if len(contenido) > 1500:
-                # Para datos numéricos, intentar mantener tablas
                 if tipo_consulta == "numerico" and ('---' in contenido or '|' in contenido):
-                    # Mantener primeras 20 líneas de tablas
                     lineas = contenido.split('\n')[:20]
                     contenido = '\n'.join(lineas)
                 else:
-                    # Para texto general, tomar principio y final
                     contenido = contenido[:800] + "\n...\n" + contenido[-400:]
             contexto_rag.append(contenido)
         
         contexto_completo.append(f"CONTEXTO DOCUMENTAL:\n" + "\n\n---\n\n".join(contexto_rag))
     
-    # Añadir análisis numérico si hay datos (OPTIMIZADO: resumir pero mantener info clave)
+    # Añadir análisis numérico si hay datos
     if datos_numericos and isinstance(datos_numericos, DatosNumericos):
         if tipo_consulta == "numerico" and datos_numericos.dataframes:
-            # Para análisis detallado, incluir info clave de DataFrames
             for nombre_df, df in datos_numericos.dataframes.items():
                 contexto_completo.append(f"\n--- DATAFRAME: {nombre_df} ---")
                 contexto_completo.append(f"Dimensiones: {len(df)} filas x {len(df.columns)} columnas")
                 contexto_completo.append(f"Columnas: {', '.join(df.columns.tolist())}")
                 
-                # Estadísticas resumidas
                 num_cols = df.select_dtypes(include=[np.number]).columns
                 if len(num_cols) > 0:
                     contexto_completo.append("\nESTADÍSTICAS CLAVE:")
                     stats_resumen = []
-                    for col in num_cols[:5]:  # Limitar a 5 columnas
+                    for col in num_cols[:5]:
                         stats_resumen.append(f"{col}: media={df[col].mean():.2f}, min={df[col].min():.2f}, max={df[col].max():.2f}")
                     contexto_completo.extend(stats_resumen)
                 
-                # Mostrar primeras filas (limitado)
                 contexto_completo.append("\nPRIMERAS 5 FILAS:")
                 contexto_completo.append(df.head(5).to_string())
         elif tipo_consulta == "codigo" and datos_numericos.fragmentos_codigo:
-            # Incluir fragmentos de código (limitado)
             contexto_completo.append("\n💻 **CÓDIGO FUENTE DETECTADO**")
-            for i, fragmento in enumerate(datos_numericos.fragmentos_codigo[:3], 1):  # Máximo 3 fragmentos
+            for i, fragmento in enumerate(datos_numericos.fragmentos_codigo[:3], 1):
                 if len(fragmento) > 1000:
                     fragmento = fragmento[:800] + "\n...\n" + fragmento[-200:]
                 contexto_completo.append(f"\n--- Fragmento de código {i} ---")
                 contexto_completo.append(f"```\n{fragmento}\n```")
         else:
-            # Resumen general (ya es conciso)
             resumen_numerico = datos_numericos.generar_resumen_estadistico()
             if resumen_numerico:
                 contexto_completo.append(f"ANÁLISIS NUMÉRICO:\n{resumen_numerico}")
@@ -557,16 +610,15 @@ def construir_mensajes_con_historial(pregunta, docs=None, datos_numericos=None):
     if contexto_completo:
         mensaje_usuario = f"{chr(10).join(contexto_completo)}\n\nPREGUNTA DEL USUARIO: {pregunta}{instruccion}\n\nAntes de responder, verifica mentalmente que cada afirmación importante esté respaldada por el contexto. Si no lo está, reformula o elimina esa parte."
     else:
-        # Si no hay contexto, también damos una instrucción para ser honesto
+        # Si no hay contexto, instrucción para ser honesto
         mensaje_usuario = f"{pregunta}\n\n(Nota: No se ha proporcionado contexto adicional. Responde basándote en tu conocimiento general, pero si no sabes algo o la pregunta requiere información específica que no tienes, indícalo honestamente.)"
     
     mensajes.append(HumanMessage(content=mensaje_usuario))
 
     return mensajes
 
-
 # ============================================
-# FUNCIÓN PARA APLICAR ESTILOS (COMPLETA - SIN CAMBIOS)
+# FUNCIÓN PARA APLICAR ESTILOS (COMPLETA)
 # ============================================
 def set_background(image_path: str):
     """Aplica fondo y tema visual personalizado si existe la imagen."""
@@ -998,7 +1050,7 @@ def set_background(image_path: str):
         )
 
 # ============================================
-# STREAMING DE RESPUESTA (OPTIMIZADO)
+# STREAMING DE RESPUESTA (PARÁMETROS OPTIMIZADOS)
 # ============================================
 def mostrar_respuesta_streaming(mensajes):
     """Gestiona el streaming de la respuesta del modelo en la interfaz."""
@@ -1008,10 +1060,10 @@ def mostrar_respuesta_streaming(mensajes):
 
         llm_stream = ChatOllama(
             model=MODEL_NAME,
-            temperature=0.1,
-            num_ctx=4096,  # Mantenemos el contexto completo
-            top_p=0.85,
-            repeat_penalty=1.2,
+            temperature=0.1,  # Optimizado para precisión
+            num_ctx=4096,
+            top_p=0.85,       # Optimizado para precisión
+            repeat_penalty=1.2, # Optimizado para evitar repeticiones
             streaming=True,
             callbacks=[callback],
         )
@@ -1030,8 +1082,7 @@ def mostrar_respuesta_streaming(mensajes):
         return None
 
 # ============================================
-# FUNCIÓN MEJORADA: EXTRAER TEXTO DE CUALQUIER DOCUMENTO (OPTIMIZADA)
-# CON SOPORTE NUMÉRICO, CÓDIGO Y MÚLTIPLES FORMATOS
+# FUNCIÓN MEJORADA: EXTRAER TEXTO DE CUALQUIER DOCUMENTO
 # ============================================
 def extraer_texto_de_archivo(uploaded_file):
     """
@@ -1093,7 +1144,7 @@ def extraer_texto_de_archivo(uploaded_file):
         datos_numericos.detectar_codigo(texto_final)
         return texto_final, datos_numericos
 
-    # Excel - ANÁLISIS NUMÉRICO (optimizado pero completo)
+    # Excel - ANÁLISIS NUMÉRICO
     if nombre.endswith((".xlsx", ".xls")):
         try:
             excel_file = pd.ExcelFile(uploaded_file)
@@ -1246,7 +1297,7 @@ def extraer_texto_de_archivo(uploaded_file):
     return "Tipo de archivo no soportado actualmente.", None
 
 # ============================================
-# VECTORSTORE TEMPORAL DESDE TEXTO (DOCUMENTO) - OPTIMIZADO
+# VECTORSTORE TEMPORAL DESDE TEXTO
 # ============================================
 def crear_vectorstore_desde_texto(texto):
     try:
@@ -1285,12 +1336,12 @@ def crear_vectorstore_desde_texto(texto):
         return None
 
 # ============================================
-# INTERFAZ PRINCIPAL (CON BARRA DE PROGRESO OPCIONAL)
+# INTERFAZ PRINCIPAL (CON FUNCIONALIDAD DE AUDIO)
 # ============================================
 def main():
     st.set_page_config(
-        page_title="AguweyBot PRO",
-        page_icon="⚡",
+        page_title="AguweyBot PRO - Accesible",
+        page_icon="🎧",
         layout="wide",
         initial_sidebar_state="expanded",
     )
@@ -1312,11 +1363,15 @@ def main():
         st.session_state.datos_numericos = None
     if "modo_rapido" not in st.session_state:
         st.session_state.modo_rapido = False
+    if "auto_leer" not in st.session_state:
+        st.session_state.auto_leer = False
+    if "procesando_voz" not in st.session_state:
+        st.session_state.procesando_voz = False
 
     # Sidebar
     with st.sidebar:
-        st.markdown("# ⚡AGUWEYBOT")
-        st.markdown("### *Asistente Inteligente*")
+        st.markdown("# 🎧 AGUWEYBOT")
+        st.markdown("### *Asistente Inteligente Accesible*")
 
         if os.path.exists("logo.png"):
             st.image("logo.png", width=220)
@@ -1325,7 +1380,41 @@ def main():
 
         st.markdown("---")
 
-        # Control de velocidad (NUEVO)
+        # ===== NUEVA SECCIÓN DE ACCESIBILIDAD POR AUDIO =====
+        st.markdown("### 🎤 **Accesibilidad por Audio**")
+        
+        # Opción 1: Leer respuestas automáticamente
+        auto_leer = st.checkbox("🔊 Leer respuestas automáticamente", 
+                               value=st.session_state.auto_leer,
+                               help="El bot leerá en voz alta sus respuestas (requiere gtts)")
+        st.session_state.auto_leer = auto_leer
+        
+        # Opción 2: Entrada por voz
+        st.markdown("#### 🎙️ Entrada por Voz")
+        st.caption("Alternativa a escribir para personas con dificultades")
+        
+        if not STT_AVAILABLE:
+            st.warning("⚠️ Instala SpeechRecognition para entrada por voz:\n`pip install SpeechRecognition`")
+        
+        # Usar st.audio_input para grabar audio
+        voz_input = st.audio_input("Grabar pregunta", key="voz_input_sidebar")
+        
+        if voz_input and not st.session_state.procesando_voz:
+            st.session_state.procesando_voz = True
+            with st.spinner("🔄 Procesando tu voz..."):
+                texto_voz, error = procesar_entrada_voz(voz_input)
+                
+                if texto_voz:
+                    st.success(f"✅ Dijiste: \"{texto_voz}\"")
+                    # Guardar como si fuera un prompt escrito
+                    st.session_state.voz_prompt = texto_voz
+                else:
+                    st.error(f"❌ {error}")
+            st.session_state.procesando_voz = False
+        
+        st.markdown("---")
+
+        # Control de velocidad
         st.markdown("### ⚙️ Modo de velocidad")
         modo_rapido = st.checkbox("🚀 Modo rápido (respuestas más ágiles)", 
                                   value=st.session_state.modo_rapido,
@@ -1384,7 +1473,7 @@ def main():
             usar_doc_en_analisis = st.checkbox(
                 "Usar este documento como contexto principal (RAG)",
                 value=True,
-                key="usar_doc_en_analisis",
+                key="usar_doc_en_analisis_check",
             )
 
             if st.button("🔍 Procesar documento"):
@@ -1419,6 +1508,8 @@ def main():
 - 📊 Análisis de Datos Numéricos
 - 💻 Análisis de Código Fuente
 - 💬 Memoria de Conversación
+- 🎧 **Texto a Voz (accesibilidad)**
+- 🎤 **Entrada por Voz (accesibilidad)**
 - ⚡ Streaming Avanzado
             """
         )
@@ -1431,6 +1522,21 @@ def main():
             st.info("⚡ Modo: Rápido")
         else:
             st.success("🐢 Modo: Completo")
+        
+        # Estado de accesibilidad
+        if TTS_AVAILABLE:
+            st.success("🔊 TTS: Disponible")
+        else:
+            st.warning("🔇 TTS: No instalado")
+        
+        if STT_AVAILABLE:
+            st.success("🎤 STT: Disponible")
+        else:
+            st.warning("🎙️ STT: No instalado")
+            
+        if st.session_state.auto_leer:
+            st.info("🔊 Auto-lectura: Activada")
+            
         if st.session_state.datos_numericos:
             if st.session_state.datos_numericos.dataframes:
                 st.info(f"📊 DataFrames: {len(st.session_state.datos_numericos.dataframes)}")
@@ -1439,14 +1545,14 @@ def main():
             if st.session_state.datos_numericos.codigo_detectado:
                 st.info(f"💻 Código detectado: Sí")
         st.markdown("---")
-        st.caption("CC-SA: 2026 AguweyBot PRO")
+        st.caption("CC-SA: 2026 AguweyBot PRO - Versión Accesible")
 
     # Contenido principal
     st.markdown(
-        '<h1 style="color: #00ffff; text-shadow: 0 0 20px rgba(0,255,255,0.5);">⚡ AguweyBot PRO</h1>',
+        '<h1 style="color: #00ffff; text-shadow: 0 0 20px rgba(0,255,255,0.5);">🎧 AguweyBot PRO Accesible</h1>',
         unsafe_allow_html=True,
     )
-    st.caption("Sistema cognitivo con memoria de conversación y recuperación semántica")
+    st.caption("Sistema cognitivo con memoria, RAG, análisis de documentos y funcionalidades de audio")
 
     # Cargar retriever base
     with st.spinner("🚀 Inicializando sistemas cognitivos..."):
@@ -1467,8 +1573,16 @@ def main():
             else:
                 st.markdown(message["content"])
 
-    # Entrada del usuario
-    prompt = st.chat_input("Escribe tu consulta...")
+    # Verificar si hay un prompt desde voz
+    prompt_voz = st.session_state.get("voz_prompt", None)
+    if prompt_voz:
+        prompt = prompt_voz
+        # Limpiar el prompt de voz para no procesarlo de nuevo
+        st.session_state.voz_prompt = None
+    else:
+        # Entrada normal de texto
+        prompt = st.chat_input("Escribe tu consulta (o usa el micrófono en la barra lateral)...")
+
     if prompt:
         # Mostrar mensaje del usuario
         with st.chat_message("user"):
@@ -1511,6 +1625,22 @@ def main():
         # Generar respuesta
         with st.chat_message("assistant"):
             respuesta = mostrar_respuesta_streaming(mensajes)
+            
+            # Si hay respuesta y auto_leer está activado, generar audio
+            if respuesta and st.session_state.auto_leer and TTS_AVAILABLE:
+                audio_html = texto_a_voz(respuesta)
+                st.markdown(audio_html, unsafe_allow_html=True)
+            
+            # Botón manual para escuchar (siempre visible si TTS está disponible)
+            if respuesta and TTS_AVAILABLE:
+                col1, col2, col3 = st.columns([1, 1, 5])
+                with col1:
+                    if st.button("🔊 Escuchar", key=f"audio_{len(st.session_state.messages)}"):
+                        audio_html = texto_a_voz(respuesta)
+                        st.markdown(audio_html, unsafe_allow_html=True)
+                with col2:
+                    if st.button("📋 Copiar", key=f"copy_{len(st.session_state.messages)}"):
+                        st.write("✅ Copiado al portapapeles (simulado)")
 
         # Guardar respuesta
         if respuesta:
@@ -1530,11 +1660,15 @@ def main():
     # Mensaje de bienvenida inicial
     elif st.session_state.first_interaction:
         st.info(
-            "👋 **¡Bienvenido!** "
-            "Puedes hacerme preguntas técnicas o literarias. "
-            "También puedes subir documentos (PDF, Word, Excel, CSV, JSON, XML, imágenes) para analizarlos. "
-            "**¡NUEVO!** Ahora puedes elegir entre modo rápido ⚡ o modo completo 🐢 desde la barra lateral. "
-            "Recuerdo toda la conversación, así que podemos profundizar en temas complejos."
+            "👋 **¡Bienvenido a la versión accesible!** \n\n"
+            "Puedes interactuar de dos formas:\n"
+            "✍️ **Escribiendo** tus preguntas\n"
+            "🎤 **Usando el micrófono** en la barra lateral (si tienes SpeechRecognition instalado)\n\n"
+            "También puedes:\n"
+            "- Subir documentos (PDF, Word, Excel, CSV, JSON, XML, imágenes)\n"
+            "- Activar **lectura automática** de respuestas en la barra lateral\n"
+            "- Usar el botón **🔊 Escuchar** junto a cada respuesta\n\n"
+            "**¡NUEVO!** Modo rápido ⚡ para respuestas más ágiles o modo completo 🐢 para máxima precisión."
         )
         st.session_state.first_interaction = False
 
@@ -1542,7 +1676,7 @@ def main():
     st.markdown(
         """
         <div class="fixed-footer">
-        <strong>⚡ Licencia CC-SA</strong> • Prof. Raymond Rosa Ávila • AguweyBot PRO 2026
+        <strong>⚡ Licencia CC-SA</strong> • Prof. Raymond Rosa Ávila • AguweyBot PRO 2026 • <strong>🎧 Versión Accesible</strong>
         </div>
         """,
         unsafe_allow_html=True,
