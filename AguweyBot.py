@@ -1427,7 +1427,7 @@ def main():
             if st.session_state.datos_numericos.codigo_detectado:
                 st.info(f"💻 Código detectado: Sí")
         st.markdown("---")
-        st.caption("CC-NC-SA: 2026 AguweyBot PRO")
+        st.caption("CC-SA: 2026 AguweyBot PRO")
 
     # Contenido principal
     st.markdown(
@@ -1530,7 +1530,7 @@ def main():
     st.markdown(
         """
         <div class="fixed-footer">
-        <strong>⚡ Licencia CC-NC-SA</strong> • Prof. Raymond Rosa Ávila • AguweyBot PRO 2026
+        <strong>⚡ Licencia CC-SA</strong> • Prof. Raymond Rosa Ávila • AguweyBot PRO 2026
         </div>
         """,
         unsafe_allow_html=True,
