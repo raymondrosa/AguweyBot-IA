@@ -374,13 +374,13 @@ def detectar_tipo_consulta(pregunta, datos_numericos=None):
         return "general"
 
 # ============================================
-# FUNCIONES DE ACCESIBILIDAD POR AUDIO
+# FUNCIONES DE ACCESIBILIDAD POR AUDIO (MODIFICADA)
 # ============================================
 
 def texto_a_voz(texto, idioma="es"):
     """Convierte texto a audio y devuelve HTML con reproductor"""
     if not TTS_AVAILABLE:
-        return "<p style='color: #f85149;'>⚠️ gTTS no instalado. Ejecuta: pip install gtts</p>"
+        return "<p style='color: #f85149;'>⚠️ gTTS no instalado. Ejecuta: pip install gtts</p>", None
     
     try:
         tts = gTTS(text=texto, lang=idioma, slow=False)
@@ -396,32 +396,9 @@ def texto_a_voz(texto, idioma="es"):
             Tu navegador no soporta el elemento de audio.
         </audio>
         """
-        return audio_html
+        return audio_html, audio_base64  # Ahora devuelve dos valores
     except Exception as e:
-        return f"<p style='color: #f85149;'>❌ Error generando audio: {e}</p>"
-
-def procesar_entrada_voz(audio_file):
-    """Convierte audio grabado a texto"""
-    if not STT_AVAILABLE:
-        return None, "SpeechRecognition no instalado. Ejecuta: pip install SpeechRecognition"
-    
-    try:
-        recognizer = sr.Recognizer()
-        
-        with sr.AudioFile(io.BytesIO(audio_file.read())) as source:
-            # Ajustar para ruido ambiental
-            recognizer.adjust_for_ambient_noise(source, duration=0.5)
-            audio_data = recognizer.record(source)
-            
-            # Reconocer en español
-            texto = recognizer.recognize_google(audio_data, language="es-ES")
-            return texto, None
-    except sr.UnknownValueError:
-        return None, "No se pudo entender el audio. Intenta hablar más claro o en un lugar más silencioso."
-    except sr.RequestError as e:
-        return None, f"Error con el servicio de reconocimiento: {e}"
-    except Exception as e:
-        return None, f"Error inesperado: {e}"
+        return f"<p style='color: #f85149;'>❌ Error generando audio: {e}</p>", None
 
 # ============================================
 # CALLBACK PARA STREAMING (OPTIMIZADO)
@@ -1622,25 +1599,75 @@ def main():
             st.session_state.datos_numericos if st.session_state.usar_doc_en_analisis else None
         )
 
-        # Generar respuesta
+               # Generar respuesta
         with st.chat_message("assistant"):
             respuesta = mostrar_respuesta_streaming(mensajes)
             
-            # Si hay respuesta y auto_leer está activado, generar audio
-            if respuesta and st.session_state.auto_leer and TTS_AVAILABLE:
-                audio_html = texto_a_voz(respuesta)
-                st.markdown(audio_html, unsafe_allow_html=True)
-            
-            # Botón manual para escuchar (siempre visible si TTS está disponible)
-            if respuesta and TTS_AVAILABLE:
-                col1, col2, col3 = st.columns([1, 1, 5])
-                with col1:
-                    if st.button("🔊 Escuchar", key=f"audio_{len(st.session_state.messages)}"):
-                        audio_html = texto_a_voz(respuesta)
+            # Si hay respuesta
+            if respuesta:
+                # Inicializar el almacén de audio si no existe
+                if "audio_messages" not in st.session_state:
+                    st.session_state.audio_messages = {}
+                
+                # Crear un ID único para este mensaje
+                msg_id = f"msg_{len(st.session_state.messages)}"
+                
+                # Auto-lectura si está activada
+                if st.session_state.auto_leer and TTS_AVAILABLE:
+                    audio_html, audio_base64 = texto_a_voz(respuesta)
+                    if audio_base64:
+                        st.session_state.audio_messages[msg_id] = audio_base64
                         st.markdown(audio_html, unsafe_allow_html=True)
+                
+                # Botones de acción - Usar 4 columnas para más opciones
+                col1, col2, col3, col4 = st.columns([1, 1, 1, 5])
+                
+                with col1:
+                    # Botón para escuchar/reproducir
+                    if st.button("🔊 Escuchar", key=f"btn_audio_{msg_id}"):
+                        # Generar nuevo audio o usar el guardado
+                        if msg_id in st.session_state.audio_messages:
+                            # Usar audio guardado
+                            audio_base64 = st.session_state.audio_messages[msg_id]
+                            audio_html = f"""
+                            <audio controls autoplay style="width: 100%; margin: 10px 0; border-radius: 30px;">
+                                <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
+                            </audio>
+                            """
+                            st.markdown(audio_html, unsafe_allow_html=True)
+                        else:
+                            # Generar nuevo audio y guardarlo
+                            audio_html, audio_base64 = texto_a_voz(respuesta)
+                            if audio_base64:
+                                st.session_state.audio_messages[msg_id] = audio_base64
+                                st.markdown(audio_html, unsafe_allow_html=True)
+                
                 with col2:
-                    if st.button("📋 Copiar", key=f"copy_{len(st.session_state.messages)}"):
-                        st.write("✅ Copiado al portapapeles (simulado)")
+                    if st.button("📋 Copiar", key=f"btn_copy_{msg_id}"):
+                        # Usar JavaScript para copiar al portapapeles
+                        st.markdown(
+                            f"""
+                            <script>
+                                navigator.clipboard.writeText({repr(respuesta)});
+                            </script>
+                            <div style="color: #00ff00; margin: 5px 0;">✅ ¡Copiado!</div>
+                            """,
+                            unsafe_allow_html=True
+                        )
+                
+                with col3:
+                    if st.button("🔄 Regenerar audio", key=f"btn_regenerate_{msg_id}"):
+                        # Forzar regeneración del audio
+                        audio_html, audio_base64 = texto_a_voz(respuesta)
+                        if audio_base64:
+                            st.session_state.audio_messages[msg_id] = audio_base64
+                            st.markdown(audio_html, unsafe_allow_html=True)
+
+        # Guardar respuesta
+        if respuesta:
+            st.session_state.messages.append(
+                {"role": "assistant", "content": respuesta}
+            )
 
         # Guardar respuesta
         if respuesta:
