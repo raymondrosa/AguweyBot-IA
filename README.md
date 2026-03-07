@@ -1,4 +1,4 @@
-Licencia: Código de registro: 2603064782073; CC-NC-SA; Prof. Raymond Rosa Ávila
+Licencia: Código de registro:CC-SA; Prof. Raymond Rosa Ávila
 
 # ⚡ AguweyBot PRO
 
