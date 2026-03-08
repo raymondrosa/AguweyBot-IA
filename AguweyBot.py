@@ -2,6 +2,7 @@
 # AGUWEYBOT PRO - CON MEMORIA, RAG Y ANÁLISIS DE DOCUMENTOS
 # VERSIÓN MEJORADA CON ANÁLISIS NUMÉRICO Y DE CÓDIGO
 # VERSIÓN OPTIMIZADA CON FUNCIONALIDAD DE AUDIO (ACCESIBILIDAD)
+# VERSIÓN CORREGIDA - BOTONES DE AUDIO PERSISTENTES
 # ============================================
 
 import os
@@ -374,7 +375,7 @@ def detectar_tipo_consulta(pregunta, datos_numericos=None):
         return "general"
 
 # ============================================
-# FUNCIONES DE ACCESIBILIDAD POR AUDIO (MODIFICADA)
+# FUNCIONES DE ACCESIBILIDAD POR AUDIO (VERSIÓN MEJORADA)
 # ============================================
 
 def texto_a_voz(texto, idioma="es"):
@@ -391,14 +392,111 @@ def texto_a_voz(texto, idioma="es"):
         audio_base64 = base64.b64encode(audio_bytes.read()).decode()
         
         audio_html = f"""
-        <audio controls style="width: 100%; margin: 10px 0; border-radius: 30px;">
+        <audio id="audio-player-{int(time.time())}" controls style="width: 100%; margin: 10px 0; border-radius: 30px;">
             <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
             Tu navegador no soporta el elemento de audio.
         </audio>
         """
-        return audio_html, audio_base64  # Ahora devuelve dos valores
+        return audio_html, audio_base64
     except Exception as e:
         return f"<p style='color: #f85149;'>❌ Error generando audio: {e}</p>", None
+
+# ============================================
+# FUNCIÓN PARA CREAR CONTROLES DE AUDIO PERSISTENTES
+# ============================================
+def crear_controles_audio(respuesta, msg_id):
+    """
+    Crea controles de audio que no desaparecen al hacer clic
+    """
+    # Inicializar el estado de audio si no existe
+    if "audio_states" not in st.session_state:
+        st.session_state.audio_states = {}
+    
+    if "audio_cache" not in st.session_state:
+        st.session_state.audio_cache = {}
+    
+    # Estado para este mensaje específico
+    if msg_id not in st.session_state.audio_states:
+        st.session_state.audio_states[msg_id] = {
+            "mostrar_reproductor": False,
+            "audio_generado": False
+        }
+    
+    msg_state = st.session_state.audio_states[msg_id]
+    
+    # Contenedor para los botones (siempre visibles)
+    col1, col2, col3, col4 = st.columns([1, 1, 1, 5])
+    
+    with col1:
+        # Botón para escuchar/reproducir
+        if st.button("🔊 Escuchar", key=f"btn_audio_{msg_id}"):
+            # Cambiar el estado para mostrar el reproductor
+            msg_state["mostrar_reproductor"] = True
+            msg_state["audio_generado"] = False
+            st.session_state.audio_states[msg_id] = msg_state
+            st.rerun()
+    
+    with col2:
+        if st.button("📋 Copiar", key=f"btn_copy_{msg_id}"):
+            # Usar JavaScript para copiar al portapapeles
+            js_code = f"""
+            <script>
+                navigator.clipboard.writeText({repr(respuesta)});
+                document.getElementById('copy-status-{msg_id}').style.display = 'block';
+                setTimeout(function() {{
+                    document.getElementById('copy-status-{msg_id}').style.display = 'none';
+                }}, 2000);
+            </script>
+            <div id="copy-status-{msg_id}" style="color: #00ff00; margin: 5px 0; display: none;">✅ ¡Copiado!</div>
+            """
+            st.markdown(js_code, unsafe_allow_html=True)
+    
+    with col3:
+        if st.button("🔄 Regenerar", key=f"btn_regenerate_{msg_id}"):
+            # Forzar regeneración del audio
+            if msg_id in st.session_state.audio_cache:
+                del st.session_state.audio_cache[msg_id]
+            msg_state["mostrar_reproductor"] = True
+            msg_state["audio_generado"] = False
+            st.session_state.audio_states[msg_id] = msg_state
+            st.rerun()
+    
+    # Contenedor para el reproductor de audio (visible solo cuando se solicita)
+    if msg_state["mostrar_reproductor"]:
+        audio_placeholder = st.empty()
+        with audio_placeholder:
+            # Generar o recuperar audio de caché
+            if msg_id not in st.session_state.audio_cache:
+                audio_html, audio_base64 = texto_a_voz(respuesta)
+                if audio_base64:
+                    st.session_state.audio_cache[msg_id] = audio_base64
+                    msg_state["audio_generado"] = True
+                    st.session_state.audio_states[msg_id] = msg_state
+            
+            if msg_id in st.session_state.audio_cache:
+                audio_base64 = st.session_state.audio_cache[msg_id]
+                # Botón para cerrar el reproductor
+                close_button = f"""
+                <div style="display: flex; justify-content: flex-end; margin-top: 5px;">
+                    <button onclick="(function(){{ 
+                        var audioDiv = document.getElementById('audio-container-{msg_id}');
+                        if(audioDiv) audioDiv.style.display = 'none';
+                    }})();" 
+                            style="background: transparent; border: 1px solid #00ffff; color: #00ffff; border-radius: 15px; padding: 2px 10px; cursor: pointer; margin-bottom: 5px;">
+                        ✖ Cerrar reproductor
+                    </button>
+                </div>
+                """
+                
+                audio_html = f"""
+                <div id="audio-container-{msg_id}" style="margin-top: 10px; padding: 10px; background: rgba(0,255,255,0.1); border-radius: 10px;">
+                    {close_button}
+                    <audio controls autoplay style="width: 100%; border-radius: 30px;">
+                        <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
+                    </audio>
+                </div>
+                """
+                st.markdown(audio_html, unsafe_allow_html=True)
 
 # ============================================
 # CALLBACK PARA STREAMING (OPTIMIZADO)
@@ -1313,7 +1411,42 @@ def crear_vectorstore_desde_texto(texto):
         return None
 
 # ============================================
-# INTERFAZ PRINCIPAL (CON FUNCIONALIDAD DE AUDIO)
+# PROCESAR ENTRADA DE VOZ
+# ============================================
+def procesar_entrada_voz(audio_input):
+    """Procesa entrada de audio y devuelve texto"""
+    if not STT_AVAILABLE:
+        return None, "SpeechRecognition no instalado"
+    
+    try:
+        recognizer = sr.Recognizer()
+        
+        # Guardar audio temporalmente
+        with open("temp_audio.wav", "wb") as f:
+            f.write(audio_input.getvalue())
+        
+        # Cargar y procesar
+        with sr.AudioFile("temp_audio.wav") as source:
+            audio = recognizer.record(source)
+            
+        # Intentar reconocer en español
+        try:
+            texto = recognizer.recognize_google(audio, language="es-ES")
+            return texto, None
+        except sr.UnknownValueError:
+            return None, "No se pudo entender el audio"
+        except sr.RequestError:
+            return None, "Error en el servicio de reconocimiento"
+            
+    except Exception as e:
+        return None, f"Error procesando audio: {str(e)}"
+    finally:
+        # Limpiar archivo temporal
+        if os.path.exists("temp_audio.wav"):
+            os.remove("temp_audio.wav")
+
+# ============================================
+# INTERFAZ PRINCIPAL (CON FUNCIONALIDAD DE AUDIO MEJORADA)
 # ============================================
 def main():
     st.set_page_config(
@@ -1344,6 +1477,10 @@ def main():
         st.session_state.auto_leer = False
     if "procesando_voz" not in st.session_state:
         st.session_state.procesando_voz = False
+    if "audio_states" not in st.session_state:
+        st.session_state.audio_states = {}
+    if "audio_cache" not in st.session_state:
+        st.session_state.audio_cache = {}
 
     # Sidebar
     with st.sidebar:
@@ -1426,6 +1563,8 @@ def main():
                 st.session_state.doc_nombre = None
                 st.session_state.usar_doc_en_analisis = False
                 st.session_state.datos_numericos = None
+                st.session_state.audio_states = {}
+                st.session_state.audio_cache = {}
                 st.rerun()
 
         st.markdown("---")
@@ -1540,13 +1679,16 @@ def main():
             )
 
     # Mostrar historial
-    for message in st.session_state.messages:
+    for i, message in enumerate(st.session_state.messages):
         with st.chat_message(message["role"]):
             if message["role"] == "assistant":
                 st.markdown(
                     f'<div class="respuesta-aguwey">{message["content"]}</div>',
                     unsafe_allow_html=True,
                 )
+                # Añadir controles de audio para mensajes anteriores
+                msg_id = f"msg_{i}"
+                crear_controles_audio(message["content"], msg_id)
             else:
                 st.markdown(message["content"])
 
@@ -1599,81 +1741,50 @@ def main():
             st.session_state.datos_numericos if st.session_state.usar_doc_en_analisis else None
         )
 
-               # Generar respuesta
+        # Generar respuesta
         with st.chat_message("assistant"):
             respuesta = mostrar_respuesta_streaming(mensajes)
             
             # Si hay respuesta
             if respuesta:
-                # Inicializar el almacén de audio si no existe
-                if "audio_messages" not in st.session_state:
-                    st.session_state.audio_messages = {}
+                # Guardar respuesta en historial
+                st.session_state.messages.append(
+                    {"role": "assistant", "content": respuesta}
+                )
                 
                 # Crear un ID único para este mensaje
-                msg_id = f"msg_{len(st.session_state.messages)}"
+                msg_id = f"msg_{len(st.session_state.messages) - 1}"
                 
                 # Auto-lectura si está activada
                 if st.session_state.auto_leer and TTS_AVAILABLE:
-                    audio_html, audio_base64 = texto_a_voz(respuesta)
-                    if audio_base64:
-                        st.session_state.audio_messages[msg_id] = audio_base64
-                        st.markdown(audio_html, unsafe_allow_html=True)
-                
-                # Botones de acción - Usar 4 columnas para más opciones
-                col1, col2, col3, col4 = st.columns([1, 1, 1, 5])
-                
-                with col1:
-                    # Botón para escuchar/reproducir
-                    if st.button("🔊 Escuchar", key=f"btn_audio_{msg_id}"):
-                        # Generar nuevo audio o usar el guardado
-                        if msg_id in st.session_state.audio_messages:
-                            # Usar audio guardado
-                            audio_base64 = st.session_state.audio_messages[msg_id]
-                            audio_html = f"""
-                            <audio controls autoplay style="width: 100%; margin: 10px 0; border-radius: 30px;">
-                                <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
-                            </audio>
-                            """
-                            st.markdown(audio_html, unsafe_allow_html=True)
-                        else:
-                            # Generar nuevo audio y guardarlo
-                            audio_html, audio_base64 = texto_a_voz(respuesta)
-                            if audio_base64:
-                                st.session_state.audio_messages[msg_id] = audio_base64
-                                st.markdown(audio_html, unsafe_allow_html=True)
-                
-                with col2:
-                    if st.button("📋 Copiar", key=f"btn_copy_{msg_id}"):
-                        # Usar JavaScript para copiar al portapapeles
-                        st.markdown(
-                            f"""
-                            <script>
-                                navigator.clipboard.writeText({repr(respuesta)});
-                            </script>
-                            <div style="color: #00ff00; margin: 5px 0;">✅ ¡Copiado!</div>
-                            """,
-                            unsafe_allow_html=True
-                        )
-                
-                with col3:
-                    if st.button("🔄 Regenerar audio", key=f"btn_regenerate_{msg_id}"):
-                        # Forzar regeneración del audio
+                    if msg_id not in st.session_state.audio_cache:
                         audio_html, audio_base64 = texto_a_voz(respuesta)
                         if audio_base64:
-                            st.session_state.audio_messages[msg_id] = audio_base64
-                            st.markdown(audio_html, unsafe_allow_html=True)
-
-        # Guardar respuesta
-        if respuesta:
-            st.session_state.messages.append(
-                {"role": "assistant", "content": respuesta}
-            )
-
-        # Guardar respuesta
-        if respuesta:
-            st.session_state.messages.append(
-                {"role": "assistant", "content": respuesta}
-            )
+                            st.session_state.audio_cache[msg_id] = audio_base64
+                            
+                            if msg_id not in st.session_state.audio_states:
+                                st.session_state.audio_states[msg_id] = {
+                                    "mostrar_reproductor": True,
+                                    "audio_generado": True
+                                }
+                            
+                            # Mostrar reproductor con auto-reproducción
+                            st.markdown(f"""
+                            <div style="margin-top: 10px; padding: 10px; background: rgba(0,255,255,0.1); border-radius: 10px;">
+                                <div style="display: flex; justify-content: flex-end; margin-bottom: 5px;">
+                                    <button onclick="this.parentElement.parentElement.style.display='none'" 
+                                            style="background: transparent; border: 1px solid #00ffff; color: #00ffff; border-radius: 15px; padding: 2px 10px; cursor: pointer;">
+                                        ✖ Cerrar
+                                    </button>
+                                </div>
+                                <audio controls autoplay style="width: 100%; border-radius: 30px;">
+                                    <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
+                                </audio>
+                            </div>
+                            """, unsafe_allow_html=True)
+                
+                # Crear controles de audio persistentes
+                crear_controles_audio(respuesta, msg_id)
 
         # Mostrar fuentes consultadas
         if docs and not st.session_state.modo_rapido:  # Solo en modo completo
@@ -1695,7 +1806,7 @@ def main():
             "- Subir documentos (PDF, Word, Excel, CSV, JSON, XML, imágenes)\n"
             "- Activar **lectura automática** de respuestas en la barra lateral\n"
             "- Usar el botón **🔊 Escuchar** junto a cada respuesta\n\n"
-            "**¡NUEVO!** Modo rápido ⚡ para respuestas más ágiles o modo completo 🐢 para máxima precisión."
+            "**¡NUEVO!** Los botones de audio ahora son persistentes - no desaparecen al hacer clic."
         )
         st.session_state.first_interaction = False
 
